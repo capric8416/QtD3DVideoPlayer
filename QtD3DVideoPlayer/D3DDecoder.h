@@ -1,21 +1,23 @@
 #pragma once
 
 #include "D3DCommon.h"
+#include <functional>
 
 
 
 namespace D3DPlayer
 {
-	class D3DDecoder
+	class D3DPLAYER_EXPORT D3DDecoder
 	{
 	public:
 		D3DDecoder(bool UseD3D9);
 		~D3DDecoder();
 
-		void Initialize();
-		void Deinitialization();
+		void Initialize(enum AVCodecID CodecID);
+		void Deinitialize();
 
-		AVFrame *AcquireFrame();
+		int SendPacket(uint8_t *pBuffer, int size, int64_t dts, int64_t pts);
+		AVFrame *DecodeFrame(int &ret, int &keyFrame, uint64_t &dts, uint64_t &pts, int &width, int &height);
 		void ReleaseFrame();
 
 		int GetWidth();
@@ -23,19 +25,22 @@ namespace D3DPlayer
 
 		double GetFramerate();
 
-		enum AVHWDeviceType GetHWDeviceType();
+		enum AVCodecID GetCodecID();
+		enum AVHWDeviceType GetHwDeviceType();
+		enum AVPixelFormat GetHwPixFormat();
 
 	private:
-		D3DPlayer::D3DFileMemory *m_pFileMemory;
+		static enum AVPixelFormat GetHwSurfaceFormat(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts);
+
 
 		AVCodec *m_pDecoder;
-		AVCodecContext *m_pDecoderContex;
-		AVFormatContext *m_pFormatContex;
-		AVBufferRef *m_pHWDeviceCtx;
-		AVPacket *m_pInputPacket;
+		AVCodecContext *m_pDecoderContext;
+		AVBufferRef *m_pHwDeviceContext;
 		AVFrame *m_pOutputFrame;
 
-		enum AVHWDeviceType m_HWDeviceType;
+		enum AVCodecID m_CodecID;
+		enum AVHWDeviceType m_HwDeviceType;
+		enum AVPixelFormat m_HwPixelFormat;
 
 		int m_Videoindex;
 

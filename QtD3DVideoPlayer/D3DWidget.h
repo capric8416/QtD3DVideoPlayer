@@ -5,33 +5,40 @@
 #include "D3DCommand.h"
 
 
-class D3DWidget : public QWidget
+
+namespace D3DPlayer
 {
-	Q_OBJECT
-
-public:
-	explicit D3DWidget(QWidget *parent = nullptr, D3DPlayer::D3DPlayerCommand *pPlayerCmd = nullptr, int width = 0, int height = 0);
-	virtual ~D3DWidget();
-	QPaintEngine *paintEngine() const { return nullptr; };
-
-
-public:
-	void paintEvent(QPaintEvent *event);
-	void resizeEvent(QResizeEvent *event);
-
-	void Initialize(int width, int height);
-	void Deinitialization();
-
-	void Resize(int width, int height);
-	
-	//void Update(AVFrame *pFrame);
-	//void Render();
-	//void Release();
+	class D3DPLAYER_EXPORT D3DWidget : public QWidget
+	{
+	public:
+		explicit D3DWidget(QWidget *parent = nullptr);
+		virtual ~D3DWidget();
+		QPaintEngine *paintEngine() const { return nullptr; };
 
 
-private:
-	//AVFrame *m_pFrame;
-	D3DPlayer::D3DPlayerCommand *m_pPlayerCmd;
-	D3DPlayer::D3DPlayerResource *m_pPlayerRes;
-};
+	public:
+		void paintEvent(QPaintEvent *event);
+		void resizeEvent(QResizeEvent *event);
 
+		void Resize(int width, int height);
+
+		// TODO
+		float GetSaturation();
+		void SetSaturation(float value);
+		float GetContrast();
+		void SetContrast(float value);
+		float GetBrightness();
+		void SetBrightness(float value);
+
+		// TODO - fake
+		void DeleteYUVData();
+		void SendFrame(uint8_t *pic, uint32_t width, uint32_t height);
+		void CreateYUVData(uint8_t *pic, uint32_t width, uint32_t height);
+		void SetPainterState(int type, bool flag);
+		void SaveImg(QString path, QString fileName, QString watermarkPath);
+
+
+	private:
+		D3DPlayer::D3DPlayerCommand *m_pPlayerCmd;
+	};
+}

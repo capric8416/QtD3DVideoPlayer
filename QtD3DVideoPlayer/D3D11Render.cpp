@@ -52,7 +52,7 @@ D3DPlayer::D3D11Render::D3D11Render(HWND hWnd, int VideoWidth, int VideoHeight, 
 	, m_pPixelShader(nullptr)
 	, m_pSamplerLinear(nullptr)
 
-	, m_IndicesSize(9)
+	, m_IndicesSize(0)
 
 {
 	Initialize();
@@ -61,12 +61,22 @@ D3DPlayer::D3D11Render::D3D11Render(HWND hWnd, int VideoWidth, int VideoHeight, 
 
 D3DPlayer::D3D11Render::~D3D11Render()
 {
-	Deinitialization();
+	Deinitialize();
 }
 
 
 void D3DPlayer::D3D11Render::Initialize()
 {
+	if (!(m_VideoWidth > 0 && m_VideoHeight > 0 && m_ViewWidth > 0 && m_ViewHeight > 0)) {
+		TRACEA(LOG_LEVEL_WARNING, "Skip Initialization because of invalid parameters: video width = %d, video heigth = %d, view width = %d, view height = %d", m_VideoWidth, m_VideoHeight, m_ViewWidth, m_ViewHeight);
+		return;
+	}
+
+	if (m_pDXGISwapChain) {
+		TRACEA(LOG_LEVEL_WARNING, "Skip Initialization because swapchain was already created");
+		return;
+	}
+
 	CreateSwapChain();
 
 	CreateSharedTexture();
@@ -85,7 +95,7 @@ void D3DPlayer::D3D11Render::Initialize()
 }
 
 
-void D3DPlayer::D3D11Render::Deinitialization()
+void D3DPlayer::D3D11Render::Deinitialize()
 {
 	SafeRelease(m_pVertexShader);
 
@@ -115,6 +125,17 @@ void D3DPlayer::D3D11Render::Deinitialization()
 
 void D3DPlayer::D3D11Render::Draw(AVFrame *pFrame)
 {
+	if (m_VideoWidth == 0 && m_VideoHeight == 0) {
+		m_VideoWidth = pFrame->width;
+		m_VideoHeight = pFrame->height;
+
+		Initialize();
+	}
+	else {
+		m_VideoWidth = pFrame->width;
+		m_VideoHeight = pFrame->height;
+	}
+
 	bool resized = false;
 	if (m_NeedResize)
 	{
@@ -122,22 +143,22 @@ void D3DPlayer::D3D11Render::Draw(AVFrame *pFrame)
 
 		resized = true;
 		m_NeedResize = false;
-
-		m_VideoWidth = pFrame->width;
-		m_VideoHeight = pFrame->height;
 	}
 
 	ID3D11Texture2D *pTexture = (ID3D11Texture2D*)pFrame->data[0];
 	uint8_t index = (uint8_t)pFrame->data[1];
 
+	BREAK_ON_FAIL_ENTER;
 	ID3D11Device *pDevice;
 	pTexture->GetDevice(&pDevice);
+	BREAK_ON_FAIL(pDevice == nullptr ? -1 : 0, L"GetDevice");
 
 	ID3D11DeviceContext *pDeviceContext;
 	pDevice->GetImmediateContext(&pDeviceContext);
+	BREAK_ON_FAIL(pDeviceContext == nullptr ? -1 : 0, L"GetImmediateContext");
 
-	BREAK_ON_FAIL_ENTER;
 	BREAK_ON_FAIL(pDevice->OpenSharedResource(m_pSharedHandle, __uuidof(ID3D11Texture2D), (void**)&m_pSharedTexture), L"OpenSharedResource");
+	BREAK_ON_FAIL(m_pSharedTexture == nullptr ? -1 : 0, L"OpenSharedResource");
 
 	pDeviceContext->CopySubresourceRegion(m_pSharedTexture, 0, 0, 0, 0, pTexture, index, 0);
 	pDeviceContext->Flush();
@@ -243,6 +264,7 @@ void D3DPlayer::D3D11Render::CreateSwapChain()
 	BREAK_ON_FAIL_ENTER;
 	D3D_FEATURE_LEVEL level;
 	BREAK_ON_FAIL(D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, D3D11_CREATE_DEVICE_DEBUG, NULL, NULL, D3D11_SDK_VERSION, &desc, &m_pDXGISwapChain, &m_pD3DDevice, &level, &m_pD3DDeviceContext), L"D3D11CreateDeviceAndSwapChain");
+	BREAK_ON_FAIL(m_pDXGISwapChain == nullptr ? -1 : 0, L"D3D11CreateDeviceAndSwapChain");
 	BREAK_ON_FAIL_LEAVE;
 	BREAK_ON_FAIL_CLEAN;
 }
@@ -257,16 +279,18 @@ void D3DPlayer::D3D11Render::CreateSharedTexture()
 	desc.ArraySize = 1;
 	desc.MipLevels = 1;
 	desc.SampleDesc.Count = 1;
-	desc.Width = m_ViewWidth;
+	desc.Width = m_VideoWidth;
 	desc.Height = m_ViewHeight;
 	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 
 	BREAK_ON_FAIL_ENTER;
 	BREAK_ON_FAIL(m_pD3DDevice->CreateTexture2D(&desc, nullptr, &m_pSharedTexture), L"CreateTexture2D");
+	BREAK_ON_FAIL(m_pSharedTexture == nullptr ? -1 : 0, L"CreateTexture2D");
 
 	IDXGIResource *pDxgiShare;
 	BREAK_ON_FAIL(m_pSharedTexture->QueryInterface(__uuidof(IDXGIResource), (void**)&pDxgiShare), L"QueryInterface");
 	BREAK_ON_FAIL(pDxgiShare->GetSharedHandle(&m_pSharedHandle), L"GetSharedHandle");
+	BREAK_ON_FAIL(m_pSharedHandle == nullptr ? -1 : 0, L"GetSharedHandle");
 	BREAK_ON_FAIL_LEAVE;
 	BREAK_ON_FAIL_CLEAN;
 }
@@ -288,8 +312,10 @@ void D3DPlayer::D3D11Render::CreateShaderResourceView()
 
 	BREAK_ON_FAIL_ENTER;
 	BREAK_ON_FAIL(m_pD3DDevice->CreateShaderResourceView(m_pSharedTexture, &luminancePlaneDesc, &m_pLuminanceView), L"CreateShaderResourceView");
+	BREAK_ON_FAIL(m_pLuminanceView == nullptr ? -1 : 0, L"CreateShaderResourceView");
 
 	BREAK_ON_FAIL(m_pD3DDevice->CreateShaderResourceView(m_pSharedTexture, &chrominancePlaneDesc, &m_pChrominanceView), L"CreateShaderResourceView");
+	BREAK_ON_FAIL(m_pChrominanceView == nullptr ? -1 : 0, L"CreateShaderResourceView");
 	BREAK_ON_FAIL_LEAVE;
 	BREAK_ON_FAIL_CLEAN;
 }
@@ -299,9 +325,11 @@ void D3DPlayer::D3D11Render::CreateRenderTargetView()
 {
 	BREAK_ON_FAIL_ENTER;
 	BREAK_ON_FAIL(m_pDXGISwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&m_pBackTexture), L"GetBuffer");
+	BREAK_ON_FAIL(m_pBackTexture == nullptr ? -1 : 0, L"GetBuffer");
 
 	CD3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc(D3D11_RTV_DIMENSION_TEXTURE2D, DXGI_FORMAT_B8G8R8A8_UNORM);
 	BREAK_ON_FAIL(m_pD3DDevice->CreateRenderTargetView(m_pBackTexture, &renderTargetViewDesc, &m_pD3DRenderTargetView), L"CreateRenderTargetView");
+	BREAK_ON_FAIL(m_pD3DRenderTargetView == nullptr ? -1 : 0, L"CreateRenderTargetView");
 	BREAK_ON_FAIL_LEAVE;
 	BREAK_ON_FAIL_CLEAN;
 }
@@ -328,6 +356,7 @@ void D3DPlayer::D3D11Render::CreateVertexBuffer()
 
 	BREAK_ON_FAIL_ENTER;
 	BREAK_ON_FAIL(m_pD3DDevice->CreateBuffer(&desc, &data, &m_pVertexBuffer), L"CreateBuffer");
+	BREAK_ON_FAIL(m_pVertexBuffer == nullptr ? -1 : 0, L"CreateBuffer");
 	BREAK_ON_FAIL_LEAVE;
 	BREAK_ON_FAIL_CLEAN;
 }
@@ -348,6 +377,7 @@ void D3DPlayer::D3D11Render::CreateIndexBuffer()
 
 	BREAK_ON_FAIL_ENTER;
 	BREAK_ON_FAIL(m_pD3DDevice->CreateBuffer(&desc, &data, &m_pIndexBuffer), L"CreateBuffer");
+	BREAK_ON_FAIL(m_pIndexBuffer == nullptr ? -1 : 0, L"CreateBuffer");
 	BREAK_ON_FAIL_LEAVE;
 	BREAK_ON_FAIL_CLEAN;
 }
@@ -361,9 +391,12 @@ void D3DPlayer::D3D11Render::CreateShaders()
 	};
 	BREAK_ON_FAIL_ENTER;
 	BREAK_ON_FAIL(m_pD3DDevice->CreateInputLayout(desc, (UINT)std::size(desc), g_main_VS, sizeof(g_main_VS), &m_pInputLayout), L"CreateInputLayout");
+	BREAK_ON_FAIL(m_pInputLayout == nullptr ? -1 : 0, L"CreateInputLayout");
 
 	BREAK_ON_FAIL(m_pD3DDevice->CreateVertexShader(g_main_VS, sizeof(g_main_VS), nullptr, &m_pVertexShader), L"CreateVertexShader");
+	BREAK_ON_FAIL(m_pVertexShader == nullptr ? -1 : 0, L"CreateVertexShader");
 	BREAK_ON_FAIL(m_pD3DDevice->CreatePixelShader(g_main_PS, sizeof(g_main_PS), nullptr, &m_pPixelShader), L"CreatePixelShader");
+	BREAK_ON_FAIL(m_pPixelShader == nullptr ? -1 : 0, L"CreateVertexShader");
 	BREAK_ON_FAIL_LEAVE;
 	BREAK_ON_FAIL_CLEAN;
 }
@@ -379,6 +412,7 @@ void D3DPlayer::D3D11Render::CreateSamplerState()
 
 	BREAK_ON_FAIL_ENTER;
 	BREAK_ON_FAIL(m_pD3DDevice->CreateSamplerState(&desc, &m_pSamplerLinear), L"CreateSamplerState");
+	BREAK_ON_FAIL(m_pSamplerLinear == nullptr ? -1 : 0, L"CreateSamplerState");
 	BREAK_ON_FAIL_LEAVE;
 	BREAK_ON_FAIL_CLEAN;
 }
@@ -423,10 +457,12 @@ void D3DPlayer::D3D11Render::UpdateVertexBufferByRatio()
 	BREAK_ON_FAIL_ENTER;
 	D3D11_MAPPED_SUBRESOURCE mapped;
 	BREAK_ON_FAIL(m_pD3DDeviceContext->Map(m_pVertexBuffer, 0, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, 0, &mapped), L"Map");
+	BREAK_ON_FAIL(&mapped == nullptr ? -1 : 0, L"Map");
 
 	memcpy(mapped.pData, vertices, sizeof(vertices));
 
 	m_pD3DDeviceContext->Unmap(m_pVertexBuffer, 0);
+	BREAK_ON_FAIL(m_pVertexBuffer == nullptr ? -1 : 0, L"Unmap");
 	BREAK_ON_FAIL_LEAVE;
 	BREAK_ON_FAIL_CLEAN;
 }

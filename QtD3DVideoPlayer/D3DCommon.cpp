@@ -4,6 +4,34 @@
 #include <stdio.h>
 
 
+
+// Trace like printf
+inline void TraceA(const char *format, ...)
+{
+	va_list args = NULL;
+	va_start(args, format);
+	size_t length = _vscprintf(format, args) + 1;
+	char  *buffer = new char[length];
+	_vsnprintf_s(buffer, length, length, format, args);
+	va_end(args);
+	OutputDebugStringA(buffer);
+	delete[] buffer;
+}
+
+// Trace like printf
+inline void TraceW(const wchar_t *format, ...)
+{
+	va_list args = NULL;
+	va_start(args, format);
+	size_t length = _vscwprintf(format, args) + 1;
+	wchar_t *buffer = new wchar_t[length];
+	_vsnwprintf_s(buffer, length, length, format, args);
+	va_end(args);
+	OutputDebugStringW(buffer);
+	delete[] buffer;
+}
+
+
 // 100ÄÉÃëÐÝÃß
 int SleepNanoseconds(LONGLONG hundreds)
 {
@@ -15,7 +43,7 @@ int SleepNanoseconds(LONGLONG hundreds)
 	HANDLE timer = CreateWaitableTimer(nullptr, TRUE, L"WaitableTimer");
 	if (!timer)
 	{
-		TRACE("CreateWaitableTimer failed code 0x%x", GetLastError());
+		TRACEW(LOG_LEVEL_WARNING, "CreateWaitableTimer failed code 0x%x", GetLastError());
 		return -1;
 	}
 
@@ -24,31 +52,17 @@ int SleepNanoseconds(LONGLONG hundreds)
 	// µ¥Î»Îª100ns
 	if (!SetWaitableTimer(timer, &t, 0, nullptr, nullptr, 0))
 	{
-		TRACE("SetWaitableTimer failed code 0x%x", GetLastError());
+		TRACEW(LOG_LEVEL_WARNING, "SetWaitableTimer failed code 0x%x", GetLastError());
 		return -2;
 	}
 
 	// Wait for the timer to achieve
 	if (WaitForSingleObject(timer, INFINITE) != WAIT_OBJECT_0)
 	{
-		TRACE("WaitForSingleObject failed code 0x%x", GetLastError());
+		TRACEW(LOG_LEVEL_WARNING, "WaitForSingleObject failed code 0x%x", GetLastError());
 	}
 
 	CloseHandle(timer);
 
 	return 0;
-}
-
-
-// Trace like printf
-inline void Trace(const wchar_t * format, ...)
-{
-	va_list args = NULL;
-	va_start(args, format);
-	size_t length = _vscwprintf(format, args) + 1;
-	wchar_t* buffer = new wchar_t[length];
-	_vsnwprintf_s(buffer, length, length, format, args);
-	va_end(args);
-	OutputDebugStringW(buffer);
-	delete[] buffer;
 }

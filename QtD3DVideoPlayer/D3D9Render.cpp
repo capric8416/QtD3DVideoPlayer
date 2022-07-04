@@ -32,17 +32,28 @@ D3DPlayer::D3D9Render::D3D9Render(HWND hWnd, int VideoWidth, int VideoHeight, in
 
 D3DPlayer::D3D9Render::~D3D9Render()
 {
-	Deinitialization();
+	Deinitialize();
 }
+
 
 
 void D3DPlayer::D3D9Render::Initialize()
 {
+	if (!(m_VideoWidth > 0 && m_VideoHeight > 0 && m_ViewWidth > 0 && m_ViewHeight > 0)) {
+		TRACEA(LOG_LEVEL_WARNING, "Skip Initialization because of invalid parameters: video width = %d, video heigth = %d, view width = %d, view height = %d", m_VideoWidth, m_VideoHeight, m_ViewWidth, m_ViewHeight);
+		return;
+	}
+
+	if (m_pD3D) {
+		TRACEA(LOG_LEVEL_WARNING, "Skip Initialization because d3d9 was already created");
+		return;
+	}
+
 	m_pD3D = Direct3DCreate9(D3D_SDK_VERSION);
 }
 
 
-void D3DPlayer::D3D9Render::Deinitialization()
+void D3DPlayer::D3D9Render::Deinitialize()
 {
 	SafeRelease(m_pD3DBackSurface);
 
@@ -58,14 +69,22 @@ void D3DPlayer::D3D9Render::Deinitialization()
 
 void D3DPlayer::D3D9Render::Draw(AVFrame * pFrame)
 {
+	if (m_VideoWidth == 0 && m_VideoHeight == 0) {
+		m_VideoWidth = pFrame->width;
+		m_VideoHeight = pFrame->height;
+
+		Initialize();
+	}
+	else {
+		m_VideoWidth = pFrame->width;
+		m_VideoHeight = pFrame->height;
+	}
+
 	if (m_NeedResize)
 	{
 		ResizeSwapChain();
 
 		m_NeedResize = false;
-
-		m_VideoWidth = pFrame->width;
-		m_VideoHeight = pFrame->height;
 
 		UpdateDestRectByRatio();
 	}
@@ -77,6 +96,7 @@ void D3DPlayer::D3D9Render::Draw(AVFrame * pFrame)
 
 	BREAK_ON_FAIL_ENTER;
 	BREAK_ON_FAIL(m_pD3DSwapChain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &m_pD3DBackSurface), L"GetBackBuffer");
+	BREAK_ON_FAIL(m_pD3DBackSurface == nullptr ? -1 : 0, L"GetBackBuffer");
 
 	BREAK_ON_FAIL(m_pD3DDevice->StretchRect(pSurface, NULL, m_pD3DBackSurface, m_pDestRect, D3DTEXF_LINEAR), L"StretchRect");
 	BREAK_ON_FAIL_LEAVE;
@@ -132,6 +152,7 @@ void D3DPlayer::D3D9Render::CreateAdditionalSwapChain()
 		params.Flags = 0;
 		BREAK_ON_FAIL_ENTER;
 		BREAK_ON_FAIL(m_pD3DDevice->CreateAdditionalSwapChain(&params, &m_pD3DSwapChain), L"CreateAdditionalSwapChain");
+		BREAK_ON_FAIL(m_pD3DSwapChain == nullptr ? -1 : 0, L"CreateAdditionalSwapChain");
 		BREAK_ON_FAIL_LEAVE;
 		BREAK_ON_FAIL_CLEAN;
 	}

@@ -6,14 +6,14 @@
 
 namespace D3DPlayer
 {
-	class D3DRender
+	class D3DPLAYER_EXPORT D3DRender
 	{
 	public:
 		D3DRender(HWND hWnd, int VideoWidth, int VideoHeight, int ViewWidth, int ViewHeight);
 		virtual ~D3DRender();
 
 		virtual void Initialize() = 0;
-		virtual void Deinitialization() = 0;
+		virtual void Deinitialize() = 0;
 
 		virtual void Draw(AVFrame *pFrame) = 0;
 		virtual void Present() = 0;

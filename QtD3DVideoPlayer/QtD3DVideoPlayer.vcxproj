@@ -37,7 +37,7 @@
     <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -92,8 +92,8 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <ReferencePath>$(VC_ReferencesPath_x64);</ReferencePath>
-    <LibraryPath>$(SolutionDir)..\ffmpeg\lib\$(PlatformTarget);$(LibraryPath)</LibraryPath>
-    <IncludePath>$(SolutionDir)..\ffmpeg\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)\..\..\..\..\00-common\lib\release\vs2015_x86;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)\..\..\..\..\00-common\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ReferencePath>$(VC_ReferencesPath_x64);</ReferencePath>
@@ -102,14 +102,21 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <ReferencePath>$(VC_ReferencesPath_x64);</ReferencePath>
-    <LibraryPath>$(SolutionDir)..\ffmpeg\lib\$(PlatformTarget);$(LibraryPath)</LibraryPath>
-    <IncludePath>$(SolutionDir)..\ffmpeg\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)\..\..\..\..\00-common\lib\release\vs2015_x86;$(SolutionDir)\..\..\..\..\00-common\lib\release\vs2015_x86\ffmpeg\$(PlatformTarget)\ffmpeg;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)..\..\..\..\00-common\include;$(SolutionDir)..\..\..\..\00-common\include\ffmpeg;$(IncludePath)</IncludePath>
+    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ReferencePath>$(VC_ReferencesPath_x64);</ReferencePath>
     <LibraryPath>$(SolutionDir)..\ffmpeg\lib\$(PlatformTarget);$(LibraryPath)</LibraryPath>
     <IncludePath>$(SolutionDir)..\ffmpeg\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="Configuration">
     <ClCompile>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
@@ -140,13 +147,13 @@
     <ClCompile>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <DebugInformationFormat>None</DebugInformationFormat>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>MaxSpeed</Optimization>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -169,9 +176,7 @@
     <ClCompile Include="D3DCommand.cpp" />
     <ClCompile Include="D3DCommon.cpp" />
     <ClCompile Include="D3DDecoder.cpp" />
-    <ClCompile Include="D3DFileMemory.cpp" />
     <ClCompile Include="D3DRender.cpp" />
-    <ClCompile Include="D3DMain.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="D3D11Render.h" />
@@ -179,11 +184,10 @@
     <ClInclude Include="D3DCommand.h" />
     <ClInclude Include="D3DCommon.h" />
     <ClInclude Include="D3DDecoder.h" />
-    <ClInclude Include="D3DFileMemory.h" />
     <ClInclude Include="D3DPixelShader.h" />
     <ClInclude Include="D3DRender.h" />
     <ClInclude Include="D3DVertexShader.h" />
-    <QtMoc Include="D3DWidget.h" />
+    <ClInclude Include="D3DWidget.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="D3DPixelShader.hlsl">

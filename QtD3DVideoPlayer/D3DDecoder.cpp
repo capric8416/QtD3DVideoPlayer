@@ -1,8 +1,5 @@
 #include "D3DDecoder.h"
 
-#include "D3DCommon.h"
-#include "D3DFileMemory.h"
-
 
 
 extern "C"
@@ -10,6 +7,7 @@ extern "C"
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/hwcontext.h>
+#include <libavutil/pixdesc.h>
 }
 
 
@@ -19,17 +17,17 @@ extern "C"
 
 
 
-D3DPlayer::D3DDecoder::D3DDecoder(bool UseD3D9)
-	: m_pFileMemory(nullptr)
 
-	, m_pDecoder(nullptr)
-	, m_pDecoderContex(nullptr)
-	, m_pFormatContex(nullptr)
-	, m_pHWDeviceCtx(nullptr)
-	, m_pInputPacket(nullptr)
+
+D3DPlayer::D3DDecoder::D3DDecoder(bool UseD3D9)
+	: m_pDecoder(nullptr)
+	, m_pDecoderContext(nullptr)
+	, m_pHwDeviceContext(nullptr)
 	, m_pOutputFrame(nullptr)
 
-	, m_HWDeviceType(AV_HWDEVICE_TYPE_NONE)
+	, m_CodecID(AV_CODEC_ID_NONE)
+	, m_HwDeviceType(UseD3D9 ? AV_HWDEVICE_TYPE_DXVA2 : AV_HWDEVICE_TYPE_D3D11VA)
+	, m_HwPixelFormat(UseD3D9 ? AV_PIX_FMT_DXVA2_VLD : AV_PIX_FMT_D3D11)
 
 	, m_Videoindex(-1)
 
@@ -38,116 +36,134 @@ D3DPlayer::D3DDecoder::D3DDecoder(bool UseD3D9)
 
 	, m_VideoFramerate(0)
 {
-	m_HWDeviceType = UseD3D9 ? AVHWDeviceType::AV_HWDEVICE_TYPE_DXVA2 : AVHWDeviceType::AV_HWDEVICE_TYPE_D3D11VA;
-
-	Initialize();
 }
 
 
 D3DPlayer::D3DDecoder::~D3DDecoder()
 {
-	Deinitialization();
+	Deinitialize();
 }
 
 
-void D3DPlayer::D3DDecoder::Initialize()
+void D3DPlayer::D3DDecoder::Initialize(enum AVCodecID CodecID)
 {
-	BREAK_ENTER;
-	m_pFormatContex = avformat_alloc_context();
+	if (m_pDecoder != nullptr) {
+		return;
+	}
 
-	m_pFileMemory = new D3DPlayer::D3DFileMemory();
-	m_pFormatContex->pb = m_pFileMemory->GetAvioContext();
+	m_CodecID = CodecID;
 
 	int ret = 0;
-	ret = avformat_open_input(&m_pFormatContex, "", nullptr, nullptr);
-	BREAK_FAIL(ret == 0, L"avformat_open_input");
-	ret = avformat_find_stream_info(m_pFormatContex, nullptr);
-	BREAK_FAIL(ret == 0, L"avformat_find_stream_info");
+	BREAK_ENTER;
+	ret = av_hwdevice_ctx_create(&m_pHwDeviceContext, m_HwDeviceType, "auto", NULL, 0);
+	BREAK_FAIL(ret == 0, L"av_hwdevice_ctx_create");
 
-	AVStream *pVideoStream = nullptr;
-	for (unsigned int i = 0; i < m_pFormatContex->nb_streams; i++) {
-		if (m_pFormatContex->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && (m_pFormatContex->streams[i]->codecpar->codec_id == AV_CODEC_ID_H264 || m_pFormatContex->streams[i]->codecpar->codec_id == AV_CODEC_ID_H265)) {
-			m_Videoindex = (int)i;
-			pVideoStream = m_pFormatContex->streams[i];
+	m_pDecoder = (AVCodec *)avcodec_find_decoder(m_CodecID);
+	BREAK_FAIL(m_pDecoder != NULL, L"avcodec_find_decoder");
+
+	for (int i = 0;; i++) {
+		const AVCodecHWConfig *config = avcodec_get_hw_config(m_pDecoder, i);
+		if (config == nullptr) {
+			TRACEA(LOG_LEVEL_WARNING, "avcodec_get_hw_config, decoder does not support device type(%s)", av_hwdevice_get_type_name(m_HwDeviceType));
+			break;
+		}
+
+		if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == m_HwDeviceType) {
+			if (config->pix_fmt != m_HwPixelFormat) {
+				TRACEA(LOG_LEVEL_WARNING, "reset m_HwDeviceType(%s) with config->pix_fmt(%s)", av_get_pix_fmt_name(m_HwPixelFormat), av_get_pix_fmt_name(config->pix_fmt));
+				m_HwPixelFormat = config->pix_fmt;
+			}
 			break;
 		}
 	}
-	BREAK_FAIL(pVideoStream, L"avformat_find_stream_info");
 
-	m_pDecoder = (AVCodec *)avcodec_find_decoder(pVideoStream->codecpar->codec_id);
-	m_pDecoderContex = avcodec_alloc_context3(m_pDecoder);
-	avcodec_parameters_to_context(m_pDecoderContex, pVideoStream->codecpar);
-	ret = avcodec_open2(m_pDecoderContex, m_pDecoder, NULL);
+	m_pDecoderContext = avcodec_alloc_context3(m_pDecoder);
+	BREAK_FAIL(m_pDecoderContext != NULL, L"avcodec_alloc_context3");
+	m_pDecoderContext->opaque = this;
+	m_pDecoderContext->hw_device_ctx = av_buffer_ref(m_pHwDeviceContext);
+	m_pDecoderContext->get_format = GetHwSurfaceFormat;
+
+	ret = avcodec_open2(m_pDecoderContext, m_pDecoder, NULL);
 	BREAK_FAIL(ret == 0, L"avcodec_open2");
 
-	av_hwdevice_ctx_create(&m_pHWDeviceCtx, m_HWDeviceType, NULL, NULL, NULL);
-	m_pDecoderContex->hw_device_ctx = av_buffer_ref(m_pHWDeviceCtx);
+	m_VideoWidth = m_pDecoderContext->width;
+	m_VideoHeight = m_pDecoderContext->height;
 
-	m_VideoWidth = m_pDecoderContex->width;
-	m_VideoHeight = m_pDecoderContex->height;
-
-	m_pInputPacket = (AVPacket *)av_malloc(sizeof(AVPacket));
 	m_pOutputFrame = av_frame_alloc();
 	BREAK_LEAVE;
 	BREAK_CLEAN;
 }
 
 
-void D3DPlayer::D3DDecoder::Deinitialization()
+void D3DPlayer::D3DDecoder::Deinitialize()
 {
-	SafeDelete(m_pFileMemory);
-
-	if (m_pFormatContex != nullptr) {
-		avformat_close_input(&m_pFormatContex);
-		m_pFormatContex = nullptr;
-	}
-
-	if (m_pInputPacket != nullptr) {
-		av_packet_free(&m_pInputPacket);
-		m_pInputPacket = nullptr;
-	}
-
 	if (m_pOutputFrame != nullptr) {
 		av_frame_free(&m_pOutputFrame);
 		m_pOutputFrame = nullptr;
 	}
 
-	if (m_pDecoderContex != nullptr) {
-		av_buffer_unref(&m_pHWDeviceCtx);
+	if (m_pDecoderContext != nullptr) {
+		av_buffer_unref(&m_pHwDeviceContext);
 
-		avcodec_free_context(&m_pDecoderContex);
-		m_pDecoderContex = nullptr;
+		avcodec_free_context(&m_pDecoderContext);
+		m_pDecoderContext = nullptr;
 	}
+
+	m_pDecoder = nullptr;
+
+	m_CodecID = AV_CODEC_ID_NONE;
 }
 
 
-AVFrame *D3DPlayer::D3DDecoder::AcquireFrame()
+int D3DPlayer::D3DDecoder::SendPacket(uint8_t *pBuffer, int size, int64_t dts, int64_t pts)
 {
-	while (av_read_frame(m_pFormatContex, m_pInputPacket) >= 0) {
-		if (m_pInputPacket->stream_index == m_Videoindex) {
-			int ret = avcodec_send_packet(m_pDecoderContex, m_pInputPacket);
-			av_packet_unref(m_pInputPacket);
-			if (ret < 0) {
-				return nullptr;
-			}
-
-			while (ret >= 0) {
-				ret = avcodec_receive_frame(m_pDecoderContex, m_pOutputFrame);
-				if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-					av_frame_unref(m_pOutputFrame);
-					break;
-				}
-				else if (ret < 0) {
-					av_frame_unref(m_pOutputFrame);
-					return nullptr;
-				}
-
-				return m_pOutputFrame;
-			}
-		}
+	AVPacket packet;
+	if (av_new_packet(&packet, 2560 * 1440) != 0) {
+		return -1;
 	}
 
-	return false;
+	packet.size = size;
+	packet.dts = dts;
+	packet.pts = pts;
+	memcpy(packet.data, pBuffer, size);
+	int ret = avcodec_send_packet(m_pDecoderContext, &packet);
+	if (ret < 0) {
+		TRACEA(LOG_LEVEL_WARNING, "%s with error 0x%x", "Error during decoding", ret);
+	}
+
+	av_packet_unref(&packet);
+
+	return ret;
+}
+
+
+AVFrame *D3DPlayer::D3DDecoder::DecodeFrame(int &ret, int &keyFrame, uint64_t &dts, uint64_t &pts, int &width, int &height)
+{
+	ret = 0;
+
+	while (ret >= 0) {
+		ret = avcodec_receive_frame(m_pDecoderContext, m_pOutputFrame);
+		if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+			av_frame_unref(m_pOutputFrame);
+			break;
+		}
+		else if (ret < 0) {
+			// Error while decoding
+			av_frame_unref(m_pOutputFrame);
+			return nullptr;
+		}
+
+		keyFrame = m_pOutputFrame->key_frame;
+		dts = (uint64_t)m_pOutputFrame->pkt_dts;
+		pts = (uint64_t)m_pOutputFrame->pts;
+		width = m_pOutputFrame->width;
+		height = m_pOutputFrame->height;
+
+		return m_pOutputFrame;
+	}
+
+	ret = -1;
+	return nullptr;
 }
 
 
@@ -172,13 +188,43 @@ int D3DPlayer::D3DDecoder::GetHeight()
 double D3DPlayer::D3DDecoder::GetFramerate()
 {
 	if (m_VideoFramerate < 1e-15) {
-		m_VideoFramerate = (double)m_pDecoderContex->framerate.den / m_pDecoderContex->framerate.num;
+		m_VideoFramerate = (double)m_pDecoderContext->framerate.den / m_pDecoderContext->framerate.num;
 	}
 	return m_VideoFramerate;
 }
 
 
-AVHWDeviceType D3DPlayer::D3DDecoder::GetHWDeviceType()
+AVCodecID D3DPlayer::D3DDecoder::GetCodecID()
 {
-	return m_HWDeviceType;
+	return m_CodecID;
+}
+
+
+AVHWDeviceType D3DPlayer::D3DDecoder::GetHwDeviceType()
+{
+	return m_HwDeviceType;
+}
+
+
+AVPixelFormat D3DPlayer::D3DDecoder::GetHwPixFormat()
+{
+	return m_HwPixelFormat;
+}
+
+
+enum AVPixelFormat D3DPlayer::D3DDecoder::GetHwSurfaceFormat(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts)
+{
+	auto pThis = (D3DPlayer::D3DDecoder *)ctx->opaque;
+
+	const enum AVPixelFormat *p;
+	for (p = pix_fmts; *p != -1; p++) {
+		if (*p == pThis->m_HwPixelFormat) {
+			TRACEA(LOG_LEVEL_INFO, "get hw surface format(%s) succeed", av_get_pix_fmt_name(*p));
+			return *p;
+		}
+	}
+
+	TRACEA(LOG_LEVEL_ERROR, "get hw surface format(%s) failed", av_get_pix_fmt_name(pThis->m_HwPixelFormat));
+
+	return AV_PIX_FMT_NONE;
 }
