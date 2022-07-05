@@ -82,12 +82,15 @@ void D3DPlayer::D3DPlayerCommand::FFmpegLogger(void *avcl, int level, const char
 
 D3DPlayer::D3DPlayerCommand & D3DPlayer::D3DPlayerCommand::GetInstance()
 {
-	// 不允许生成静态库使用，否则被多少动态库链接的时候会生成多少实例
+	// 不允许生成静态库使用，否则被多个动态库链接的时候会生成多少实例
 	// Effective C++ -- Meyers' Singleton
 	// C++0x之后该实现是线程安全的, C++0x之前仍需加锁
+
 	static D3DPlayer::D3DPlayerCommand instance(true);
+
 	// D3D11CreateDevice crash at ffmpeg/libavutil/hwcontext_d3d11va.c#576
 	//static D3DPlayer::D3DPlayerCommand instance(IsWindows7OrGreater() && !IsWindows8OrGreater());
+	
 	return instance;
 }
 

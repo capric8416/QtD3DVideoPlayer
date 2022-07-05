@@ -17,10 +17,10 @@ namespace D3DPlayer
 
 
 	public:
-		void paintEvent(QPaintEvent *event);
-		void resizeEvent(QResizeEvent *event);
+		virtual void paintEvent(QPaintEvent *event);
+		virtual void resizeEvent(QResizeEvent *event);
 
-		void Resize(int width, int height);
+		void Resize(HWND hWnd, int width, int height);
 
 		// TODO
 		float GetSaturation();

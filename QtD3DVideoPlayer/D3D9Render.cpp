@@ -92,10 +92,12 @@ void D3DPlayer::D3D9Render::Draw(AVFrame * pFrame)
 		m_VideoHeight = pFrame->height;
 	}
 
+	bool resized = false;
 	if (m_NeedResize)
 	{
 		ResizeSwapChain();
 
+		resized = true;
 		m_NeedResize = false;
 
 		UpdateDestRectByRatio();
@@ -103,21 +105,37 @@ void D3DPlayer::D3D9Render::Draw(AVFrame * pFrame)
 
 	IDirect3DSurface9 *pSurface = (IDirect3DSurface9 *)pFrame->data[3];
 
-	GetDevice(pSurface);
+	bool setted = GetDevice(pSurface);
+
 	CreateAdditionalSwapChain();
 
 	BREAK_ON_FAIL_ENTER;
 	BREAK_ON_FAIL(m_pD3DSwapChain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &m_pD3DBackSurface), L"GetBackBuffer");
 	BREAK_ON_FAIL(m_pD3DBackSurface == nullptr ? -1 : 0, L"GetBackBuffer");
 
-	result = IDirect3DDevice9_SetSamplerState(m_pD3DDevice, 0, D3DSAMP_MINFILTER, D3DSAMP_MINFILTER, D3DTEXF_GAUSSIANQUAD);
+	if (setted || resized) {
+		if (setted) {
+			UpdateDestRectByRatio();
+		}
+		result = m_pD3DDevice->ColorFill((IDirect3DSurface9 *)m_pD3DBackSurface, NULL, D3DCOLOR_RGBA(128, 128, 128, 1));
+		if (FAILED(result)) {
+			TRACEA(LOG_LEVEL_WARNING, "Clear render target error with code: 0x%0x", result);
+		}
+	}
+
+	result = IDirect3DDevice9_SetSamplerState(m_pD3DDevice, 0, D3DSAMP_MINFILTER, D3DTEXF_GAUSSIANQUAD);
 	if (FAILED(result)) {
 		TRACEA(LOG_LEVEL_WARNING, "IDirect3DDevice9_SetSamplerState D3DSAMP_MINFILTER D3DTEXF_GAUSSIANQUAD error with code: 0x%0x", result);
 	}
-	result = IDirect3DDevice9_SetSamplerState(m_pD3DDevice, 0, D3DSAMP_MINFILTER, D3DSAMP_MAGFILTER, D3DTEXF_GAUSSIANQUAD);
+	result = IDirect3DDevice9_SetSamplerState(m_pD3DDevice, 0, D3DSAMP_MAGFILTER, D3DTEXF_GAUSSIANQUAD);
 	if (FAILED(result)) {
 		TRACEA(LOG_LEVEL_WARNING, "IDirect3DDevice9_SetSamplerState D3DSAMP_MAGFILTER D3DTEXF_GAUSSIANQUAD error with code: 0x%0x", result);
 	}
+	result = IDirect3DDevice9_SetSamplerState(m_pD3DDevice, 0, D3DSAMP_MIPFILTER, D3DTEXF_GAUSSIANQUAD);
+	if (FAILED(result)) {
+		TRACEA(LOG_LEVEL_WARNING, "IDirect3DDevice9_SetSamplerState D3DSAMP_MIPFILTER D3DTEXF_GAUSSIANQUAD error with code: 0x%0x", result);
+	}
+
 	BREAK_ON_FAIL(m_pD3DDevice->StretchRect(pSurface, NULL, m_pD3DBackSurface, m_pDestRect, D3DTEXF_NONE), L"StretchRect");
 	BREAK_ON_FAIL_LEAVE;
 	//BREAK_ON_FAIL_CLEAN;
@@ -151,7 +169,7 @@ void D3DPlayer::D3D9Render::ResizeSwapChain()
 
 
 
-void D3DPlayer::D3D9Render::GetDevice(IDirect3DSurface9 *pSurface)
+bool D3DPlayer::D3D9Render::GetDevice(IDirect3DSurface9 *pSurface)
 {
 	if (m_pD3DDevice == nullptr) {
 		BREAK_ON_FAIL_ENTER;
@@ -160,7 +178,11 @@ void D3DPlayer::D3D9Render::GetDevice(IDirect3DSurface9 *pSurface)
 		//BREAK_ON_FAIL_CLEAN;
 
 		m_InitFailed = FAILED(result);
+
+		return true;
 	}
+
+	return false;
 }
 
 
@@ -189,12 +211,8 @@ void D3DPlayer::D3D9Render::CreateAdditionalSwapChain()
 
 void D3DPlayer::D3D9Render::UpdateDestRectByRatio()
 {
-	double viewRatio = GetViewRatio();
-	double videoRatio = GetVideoRatio();
-
-	// 如果宽高比几乎一致，则无需缩放
-	if (fabs(videoRatio - viewRatio) < 1e-15)
-	{
+	RECT rect;
+	if (!ScaleByRatio(&rect)) {
 		return;
 	}
 
@@ -203,21 +221,8 @@ void D3DPlayer::D3D9Render::UpdateDestRectByRatio()
 		m_pDestRect = new RECT;
 	}
 
-	// 保持宽高比缩放
-	double left, top, width, height;
-	if (viewRatio > videoRatio) {
-		width = m_ViewWidth;
-		height = width * videoRatio;
-	}
-	else {
-		height = m_ViewHeight;
-		width = height / videoRatio;
-	}
-	left = (m_ViewWidth - width) / 2;
-	top = (m_ViewHeight - height) / 2;
-
-	m_pDestRect->left = (long)left;
-	m_pDestRect->top = (long)top;
-	m_pDestRect->right = (long)(width + left);
-	m_pDestRect->bottom = (long)(height + top);
+	m_pDestRect->left = rect.left;
+	m_pDestRect->top = rect.top;
+	m_pDestRect->right = rect.right;
+	m_pDestRect->bottom = rect.bottom;
 }

@@ -23,7 +23,7 @@ namespace D3DPlayer
 		virtual void ResizeSwapChain();
 
 	private:
-		void GetDevice(IDirect3DSurface9 *pSurface);
+		bool GetDevice(IDirect3DSurface9 *pSurface);
 		void CreateAdditionalSwapChain();
 
 		void UpdateDestRectByRatio();

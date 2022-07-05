@@ -30,6 +30,8 @@ namespace D3DPlayer
 		double GetVideoRatio();
 		double GetViewRatio();
 
+		bool ScaleByRatio(RECT *pRect);
+
 		HWND m_hWnd;
 
 		int m_VideoWidth;

@@ -45,7 +45,7 @@ void D3DPlayer::D3DRender::Resize(int width, int height)
 		m_OldViewHeight = m_ViewHeight;
 	}
 
-	m_ViewWidth = width;                                                                 
+	m_ViewWidth = width;
 	m_ViewHeight = height;
 }
 
@@ -65,4 +65,37 @@ double D3DPlayer::D3DRender::GetVideoRatio()
 double D3DPlayer::D3DRender::GetViewRatio()
 {
 	return (double)m_ViewHeight / m_ViewWidth;
+}
+
+
+bool D3DPlayer::D3DRender::ScaleByRatio(RECT *pRect)
+{
+	double viewRatio = GetViewRatio();
+	double videoRatio = GetVideoRatio();
+
+	// 如果宽高比几乎一致，则无需缩放
+	if (fabs(videoRatio - viewRatio) < 1e-15)
+	{
+		return false;
+	}
+
+	// 保持宽高比缩放
+	double left, top, width, height;
+	if (viewRatio > videoRatio) {
+		width = m_ViewWidth;
+		height = width * videoRatio;
+	}
+	else {
+		height = m_ViewHeight;
+		width = height / videoRatio;
+	}
+	left = (m_ViewWidth - width) / 2;
+	top = (m_ViewHeight - height) / 2;
+
+	pRect->left = (long)left;
+	pRect->top = (long)top;
+	pRect->right = (long)(width + left);
+	pRect->bottom = (long)(height + top);
+
+	return true;
 }

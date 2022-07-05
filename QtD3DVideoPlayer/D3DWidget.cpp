@@ -34,14 +34,12 @@ void D3DPlayer::D3DWidget::paintEvent(QPaintEvent *event)
 
 void D3DPlayer::D3DWidget::resizeEvent(QResizeEvent *event)
 {
-	const QSize size = event->size();
-	Resize(size.width(), size.height());
 }
 
 
-void D3DPlayer::D3DWidget::Resize(int width, int height)
+void D3DPlayer::D3DWidget::Resize(HWND hWnd, int width, int height)
 {
-	m_pPlayerCmd->Resize((HWND)winId(), width, height);
+	m_pPlayerCmd->Resize((hWnd), width, height);
 }
 
 
