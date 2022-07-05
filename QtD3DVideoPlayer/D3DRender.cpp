@@ -50,6 +50,12 @@ void D3DPlayer::D3DRender::Resize(int width, int height)
 }
 
 
+bool D3DPlayer::D3DRender::IsInitFailed()
+{
+	return m_InitFailed;
+}
+
+
 double D3DPlayer::D3DRender::GetVideoRatio()
 {
 	return (double)m_VideoHeight / m_VideoWidth;

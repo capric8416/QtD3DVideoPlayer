@@ -35,6 +35,8 @@ D3DPlayer::D3DDecoder::D3DDecoder(bool UseD3D9)
 	, m_VideoHeight(0)
 
 	, m_VideoFramerate(0)
+
+	, InitFailed(false)
 {
 }
 
@@ -50,6 +52,12 @@ void D3DPlayer::D3DDecoder::Initialize(enum AVCodecID CodecID)
 	if (m_pDecoder != nullptr) {
 		return;
 	}
+
+	TRACEA(LOG_LEVEL_INFO, "<begin>");
+
+	std::lock_guard<std::mutex> locker(m_mutexInitUninit);
+
+	InitFailed = false;
 
 	m_CodecID = CodecID;
 
@@ -92,11 +100,19 @@ void D3DPlayer::D3DDecoder::Initialize(enum AVCodecID CodecID)
 	m_pOutputFrame = av_frame_alloc();
 	BREAK_LEAVE;
 	BREAK_CLEAN;
+
+	InitFailed = !succeed;
+
+	TRACEA(LOG_LEVEL_INFO, "</end>");
 }
 
 
 void D3DPlayer::D3DDecoder::Deinitialize()
 {
+	TRACEA(LOG_LEVEL_INFO, "<begin>");
+
+	std::lock_guard<std::mutex> locker(m_mutexInitUninit);
+
 	if (m_pOutputFrame != nullptr) {
 		av_frame_free(&m_pOutputFrame);
 		m_pOutputFrame = nullptr;
@@ -112,6 +128,8 @@ void D3DPlayer::D3DDecoder::Deinitialize()
 	m_pDecoder = nullptr;
 
 	m_CodecID = AV_CODEC_ID_NONE;
+
+	TRACEA(LOG_LEVEL_INFO, "</end>");
 }
 
 
@@ -128,7 +146,7 @@ int D3DPlayer::D3DDecoder::SendPacket(uint8_t *pBuffer, int size, int64_t dts, i
 	memcpy(packet.data, pBuffer, size);
 	int ret = avcodec_send_packet(m_pDecoderContext, &packet);
 	if (ret < 0) {
-		TRACEA(LOG_LEVEL_WARNING, "%s with error 0x%x", "Error during decoding", ret);
+		TRACEA(LOG_LEVEL_WARNING, "Error during decoding with code 0x%x", ret);
 	}
 
 	av_packet_unref(&packet);
@@ -148,7 +166,7 @@ AVFrame *D3DPlayer::D3DDecoder::DecodeFrame(int &ret, int &keyFrame, uint64_t &d
 			break;
 		}
 		else if (ret < 0) {
-			// Error while decoding
+			TRACEA(LOG_LEVEL_WARNING, "Error while decoding with code 0x%x", ret);
 			av_frame_unref(m_pOutputFrame);
 			return nullptr;
 		}
@@ -170,6 +188,12 @@ AVFrame *D3DPlayer::D3DDecoder::DecodeFrame(int &ret, int &keyFrame, uint64_t &d
 void D3DPlayer::D3DDecoder::ReleaseFrame()
 {
 	av_frame_unref(m_pOutputFrame);
+}
+
+
+bool D3DPlayer::D3DDecoder::IsInitFailed()
+{
+	return InitFailed;
 }
 
 
@@ -225,6 +249,8 @@ enum AVPixelFormat D3DPlayer::D3DDecoder::GetHwSurfaceFormat(AVCodecContext *ctx
 	}
 
 	TRACEA(LOG_LEVEL_ERROR, "get hw surface format(%s) failed", av_get_pix_fmt_name(pThis->m_HwPixelFormat));
+
+	pThis->InitFailed = true;
 
 	return AV_PIX_FMT_NONE;
 }

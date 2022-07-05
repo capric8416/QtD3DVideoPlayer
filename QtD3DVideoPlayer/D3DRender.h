@@ -24,6 +24,7 @@ namespace D3DPlayer
 
 		virtual void Resize(int width, int height);
 
+		bool IsInitFailed();
 
 	protected:
 		double GetVideoRatio();
@@ -40,5 +41,7 @@ namespace D3DPlayer
 		int m_OldViewHeight;
 
 		bool m_NeedResize;
+
+		bool m_InitFailed;
 	};
 }

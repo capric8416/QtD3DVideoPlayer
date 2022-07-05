@@ -3,6 +3,8 @@
 
 #include "D3DRender.h"
 
+#include <mutex>
+
 
 namespace D3DPlayer
 {
@@ -33,5 +35,7 @@ namespace D3DPlayer
 		IDirect3DSurface9 *m_pD3DBackSurface;
 
 		RECT *m_pDestRect;
+		
+		std::mutex m_mutexInitUninit;
 	};
 }

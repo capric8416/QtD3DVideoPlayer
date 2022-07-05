@@ -2,6 +2,7 @@
 
 #include "D3DCommon.h"
 #include <functional>
+#include <mutex>
 
 
 
@@ -19,6 +20,8 @@ namespace D3DPlayer
 		int SendPacket(uint8_t *pBuffer, int size, int64_t dts, int64_t pts);
 		AVFrame *DecodeFrame(int &ret, int &keyFrame, uint64_t &dts, uint64_t &pts, int &width, int &height);
 		void ReleaseFrame();
+
+		bool IsInitFailed();
 
 		int GetWidth();
 		int GetHeight();
@@ -48,5 +51,9 @@ namespace D3DPlayer
 		int m_VideoHeight;
 
 		double m_VideoFramerate;
+
+		bool InitFailed;
+
+		std::mutex m_mutexInitUninit;
 	};
 }

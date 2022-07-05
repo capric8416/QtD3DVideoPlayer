@@ -178,13 +178,13 @@ static const wchar_t *LOG_LEVEL_STR_W[] = { L"QUIET", L"PANIC", L"FATAL", L"ERRO
 
 
 
-#define BREAK_ENTER                      bool success = false;                                              \
+#define BREAK_ENTER                      bool succeed = false;                                              \
 										 do {
-#define BREAK_FAIL(result, error)           success = true;                                                 \
+#define BREAK_FAIL(result, error)           succeed = true;                                                 \
 											if (!result) {                                                  \
 												TRACEW(LOG_LEVEL_ERROR, "%s", error);                       \
-												success = false;                                            \
+												succeed = false;                                            \
 							     				break;                                                      \
 											}
 #define BREAK_LEAVE                      } while (false)
-#define BREAK_CLEAN                      assert(success)
+#define BREAK_CLEAN                      assert(succeed)

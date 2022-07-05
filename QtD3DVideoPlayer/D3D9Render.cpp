@@ -6,7 +6,7 @@ extern "C"
 #include <libavcodec/avcodec.h>
 }
 
-#ifdef _DEBUG
+#if defined(_DEBUG)
 #define D3D_DEBUG_INFO
 #endif // _DEBUG
 #include <d3d9.h>
@@ -39,22 +39,32 @@ D3DPlayer::D3D9Render::~D3D9Render()
 
 void D3DPlayer::D3D9Render::Initialize()
 {
-	if (!(m_VideoWidth > 0 && m_VideoHeight > 0 && m_ViewWidth > 0 && m_ViewHeight > 0)) {
-		TRACEA(LOG_LEVEL_WARNING, "Skip Initialization because of invalid parameters: video width = %d, video heigth = %d, view width = %d, view height = %d", m_VideoWidth, m_VideoHeight, m_ViewWidth, m_ViewHeight);
+	if (m_pD3D) {
+		TRACEA(LOG_LEVEL_WARNING, "Skip initialization because d3d9 was already created");
 		return;
 	}
 
-	if (m_pD3D) {
-		TRACEA(LOG_LEVEL_WARNING, "Skip Initialization because d3d9 was already created");
+	if (!(m_VideoWidth > 0 && m_VideoHeight > 0 && m_ViewWidth > 0 && m_ViewHeight > 0)) {
+		TRACEA(LOG_LEVEL_WARNING, "Skip initialization because of invalid parameters: video width = %d, video heigth = %d, view width = %d, view height = %d", m_VideoWidth, m_VideoHeight, m_ViewWidth, m_ViewHeight);
 		return;
 	}
+
+	TRACEA(LOG_LEVEL_INFO, "<begin>");
+
+	std::lock_guard<std::mutex> locker(m_mutexInitUninit);
 
 	m_pD3D = Direct3DCreate9(D3D_SDK_VERSION);
+
+	TRACEA(LOG_LEVEL_INFO, "</end>");
 }
 
 
 void D3DPlayer::D3D9Render::Deinitialize()
 {
+	TRACEA(LOG_LEVEL_INFO, "<begin>");
+
+	std::lock_guard<std::mutex> locker(m_mutexInitUninit);
+
 	SafeRelease(m_pD3DBackSurface);
 
 	SafeRelease(m_pD3DDevice);
@@ -64,6 +74,8 @@ void D3DPlayer::D3D9Render::Deinitialize()
 	SafeRelease(m_pD3D);
 
 	SafeDelete(m_pDestRect);
+
+	TRACEA(LOG_LEVEL_INFO, "</end>");
 }
 
 
@@ -98,9 +110,19 @@ void D3DPlayer::D3D9Render::Draw(AVFrame * pFrame)
 	BREAK_ON_FAIL(m_pD3DSwapChain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &m_pD3DBackSurface), L"GetBackBuffer");
 	BREAK_ON_FAIL(m_pD3DBackSurface == nullptr ? -1 : 0, L"GetBackBuffer");
 
-	BREAK_ON_FAIL(m_pD3DDevice->StretchRect(pSurface, NULL, m_pD3DBackSurface, m_pDestRect, D3DTEXF_LINEAR), L"StretchRect");
+	result = IDirect3DDevice9_SetSamplerState(m_pD3DDevice, 0, D3DSAMP_MINFILTER, D3DSAMP_MINFILTER, D3DTEXF_GAUSSIANQUAD);
+	if (FAILED(result)) {
+		TRACEA(LOG_LEVEL_WARNING, "IDirect3DDevice9_SetSamplerState D3DSAMP_MINFILTER D3DTEXF_GAUSSIANQUAD error with code: 0x%0x", result);
+	}
+	result = IDirect3DDevice9_SetSamplerState(m_pD3DDevice, 0, D3DSAMP_MINFILTER, D3DSAMP_MAGFILTER, D3DTEXF_GAUSSIANQUAD);
+	if (FAILED(result)) {
+		TRACEA(LOG_LEVEL_WARNING, "IDirect3DDevice9_SetSamplerState D3DSAMP_MAGFILTER D3DTEXF_GAUSSIANQUAD error with code: 0x%0x", result);
+	}
+	BREAK_ON_FAIL(m_pD3DDevice->StretchRect(pSurface, NULL, m_pD3DBackSurface, m_pDestRect, D3DTEXF_NONE), L"StretchRect");
 	BREAK_ON_FAIL_LEAVE;
-	BREAK_ON_FAIL_CLEAN;
+	//BREAK_ON_FAIL_CLEAN;
+
+	m_InitFailed = FAILED(result);
 }
 
 
@@ -109,7 +131,9 @@ void D3DPlayer::D3D9Render::Present()
 	BREAK_ON_FAIL_ENTER;
 	BREAK_ON_FAIL(m_pD3DSwapChain->Present(NULL, NULL, NULL, NULL, NULL), L"Present");
 	BREAK_ON_FAIL_LEAVE;
-	BREAK_ON_FAIL_CLEAN;
+	//BREAK_ON_FAIL_CLEAN;
+
+	m_InitFailed = FAILED(result);
 }
 
 
@@ -133,7 +157,9 @@ void D3DPlayer::D3D9Render::GetDevice(IDirect3DSurface9 *pSurface)
 		BREAK_ON_FAIL_ENTER;
 		BREAK_ON_FAIL(pSurface->GetDevice(&m_pD3DDevice), L"GetDevice");
 		BREAK_ON_FAIL_LEAVE;
-		BREAK_ON_FAIL_CLEAN;
+		//BREAK_ON_FAIL_CLEAN;
+
+		m_InitFailed = FAILED(result);
 	}
 }
 
@@ -154,7 +180,9 @@ void D3DPlayer::D3D9Render::CreateAdditionalSwapChain()
 		BREAK_ON_FAIL(m_pD3DDevice->CreateAdditionalSwapChain(&params, &m_pD3DSwapChain), L"CreateAdditionalSwapChain");
 		BREAK_ON_FAIL(m_pD3DSwapChain == nullptr ? -1 : 0, L"CreateAdditionalSwapChain");
 		BREAK_ON_FAIL_LEAVE;
-		BREAK_ON_FAIL_CLEAN;
+		//BREAK_ON_FAIL_CLEAN;
+
+		m_InitFailed = FAILED(result);
 	}
 }
 

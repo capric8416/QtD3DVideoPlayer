@@ -20,7 +20,7 @@ namespace D3DPlayer
 		)
 			: No(no)
 			, Wnd(hWnd)
-			, RenderFrame(pRender)
+			, Render(pRender)
 			, Decoder(pDecoder)
 		{
 		}
@@ -29,7 +29,7 @@ namespace D3DPlayer
 		UINT64 No;
 		HWND Wnd;
 		D3DDecoder *Decoder;
-		D3DRender *RenderFrame;
+		D3DRender *Render;
 	};
 
 	typedef std::function<void(D3DPlayerCommand *pPlayerCmd, D3DPlayerResource *pRes)> WalkProc;
@@ -51,8 +51,6 @@ namespace D3DPlayer
 		// µ¥Àý
 		static D3DPlayerCommand & GetInstance();
 
-		D3DPlayerResource *Find(HWND hWnd);
-
 		// create decoder and render
 		D3DPlayerResource *Create(HWND hWnd, int width, int height);
 		// destroy decoder and render
@@ -62,6 +60,8 @@ namespace D3DPlayer
 		void DecoderInitialize(D3DPlayerResource *pRes, enum AVCodecID CodeID);
 		// proxy: uninit decoder
 		void DecoderDeinitialize(D3DPlayerResource *pRes);
+		// proxy: detect decoder error
+		bool DecoderInitializeFailed(D3DPlayerResource *pRes);
 		
 		// proxy: get codec id
 		enum AVCodecID GetCodecID(D3DPlayerResource *pRes);
@@ -71,10 +71,14 @@ namespace D3DPlayer
 		// proxy: read a frame from decoder
 		AVFrame *DecodeFrame(D3DPlayerResource * pRes, int &ret, int &keyFrame, uint64_t &dts, uint64_t &pts, int &width, int &height);
 
+		// proxy: uninit render
+		void RenderDeinitialize(D3DPlayerResource *pRes);
 		// proxy: render a frame
 		void RenderFrame(D3DPlayerResource *pRes, AVFrame *pFrame);
 		// proxy: release a decodeed frame
 		void ReleaseFrame(D3DPlayerResource *pRes);
+		// proxy: detect render error
+		bool RenderInitializeFailed(D3DPlayerResource *pRes);
 
 		// proxy: resize window
 		void Resize(HWND hWnd, int width, int height);

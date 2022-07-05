@@ -37,7 +37,7 @@ D3DPlayer::D3DPlayerCommand::~D3DPlayerCommand()
 
 		SafeDelete(p->Decoder);
 
-		SafeDelete(p->RenderFrame);
+		SafeDelete(p->Render);
 
 		PostMessage(p->Wnd, WM_QUIT, 0, 0);
 	}
@@ -85,19 +85,10 @@ D3DPlayer::D3DPlayerCommand & D3DPlayer::D3DPlayerCommand::GetInstance()
 	// 不允许生成静态库使用，否则被多少动态库链接的时候会生成多少实例
 	// Effective C++ -- Meyers' Singleton
 	// C++0x之后该实现是线程安全的, C++0x之前仍需加锁
-	static D3DPlayer::D3DPlayerCommand instance(IsWindows7OrGreater() && !IsWindows8OrGreater());
+	static D3DPlayer::D3DPlayerCommand instance(true);
+	// D3D11CreateDevice crash at ffmpeg/libavutil/hwcontext_d3d11va.c#576
+	//static D3DPlayer::D3DPlayerCommand instance(IsWindows7OrGreater() && !IsWindows8OrGreater());
 	return instance;
-}
-
-
-D3DPlayer::D3DPlayerResource * D3DPlayer::D3DPlayerCommand::Find(HWND hWnd)
-{
-	auto iter = m_mapResources.find(hWnd);
-	if (iter == m_mapResources.end()) {
-		return nullptr;
-	}
-
-	return iter->second;
 }
 
 
@@ -125,6 +116,8 @@ D3DPlayer::D3DPlayerResource * D3DPlayer::D3DPlayerCommand::Create(HWND hWnd, in
 	D3DPlayerResource *pRes = new D3DPlayerResource(m_No, hWnd, pDecoder, pRender);
 
 	m_mapResources[hWnd] = pRes;
+
+	TRACEA(LOG_LEVEL_INFO, "no: %d, hwnd: 0x%x, decoder: 0x%x, render: 0x%x, res: 0x%x", m_No, hWnd, pDecoder, pRender, pRes);
 
 	return pRes;
 }
@@ -163,6 +156,16 @@ void D3DPlayer::D3DPlayerCommand::DecoderDeinitialize(D3DPlayerResource * pRes)
 }
 
 
+bool D3DPlayer::D3DPlayerCommand::DecoderInitializeFailed(D3DPlayerResource * pRes)
+{
+	if (pRes == nullptr) {
+		return false;
+	}
+
+	return pRes->Decoder->IsInitFailed();
+}
+
+
 AVCodecID D3DPlayer::D3DPlayerCommand::GetCodecID(D3DPlayer::D3DPlayerResource *pRes)
 {
 	if (pRes == nullptr) {
@@ -194,6 +197,23 @@ AVFrame *D3DPlayer::D3DPlayerCommand::DecodeFrame(D3DPlayer::D3DPlayerResource *
 }
 
 
+void D3DPlayer::D3DPlayerCommand::RenderDeinitialize(D3DPlayerResource * pRes)
+{
+	if (pRes == nullptr) {
+		return;
+	}
+
+	if (m_UseD3D9) {
+		D3D9Render *pRender = (D3D9Render *)pRes->Render;
+		pRender->Deinitialize();
+	}
+	else {
+		D3D11Render *pRender = (D3D11Render *)pRes->Render;
+		pRender->Deinitialize();
+	}
+}
+
+
 void D3DPlayer::D3DPlayerCommand::RenderFrame(D3DPlayerResource * pRes, AVFrame *pFrame)
 {
 	if (pRes == nullptr) {
@@ -201,12 +221,12 @@ void D3DPlayer::D3DPlayerCommand::RenderFrame(D3DPlayerResource * pRes, AVFrame 
 	}
 
 	if (m_UseD3D9) {
-		D3D9Render *pRender = (D3D9Render *)pRes->RenderFrame;
+		D3D9Render *pRender = (D3D9Render *)pRes->Render;
 		pRender->Draw(pFrame);
 		pRender->Present();
 	}
 	else {
-		D3D11Render *pRender = (D3D11Render *)pRes->RenderFrame;
+		D3D11Render *pRender = (D3D11Render *)pRes->Render;
 		pRender->Draw(pFrame);
 		pRender->Present();
 	}
@@ -223,6 +243,23 @@ void D3DPlayer::D3DPlayerCommand::ReleaseFrame(D3DPlayerResource * pRes)
 }
 
 
+bool D3DPlayer::D3DPlayerCommand::RenderInitializeFailed(D3DPlayerResource * pRes)
+{
+	if (pRes == nullptr) {
+		return false;
+	}
+
+	if (m_UseD3D9) {
+		D3D9Render *pRender = (D3D9Render *)pRes->Render;
+		return pRes->Render->IsInitFailed();
+	}
+	else {
+		D3D11Render *pRender = (D3D11Render *)pRes->Render;
+		return pRes->Render->IsInitFailed();
+	}
+}
+
+
 void D3DPlayer::D3DPlayerCommand::Resize(HWND hWnd, int width, int height)
 {
 	auto iter = m_mapResources.find(hWnd);
@@ -230,7 +267,7 @@ void D3DPlayer::D3DPlayerCommand::Resize(HWND hWnd, int width, int height)
 		return;
 	}
 
-	iter->second->RenderFrame->Resize(width, height);
+	iter->second->Render->Resize(width, height);
 }
 
 
