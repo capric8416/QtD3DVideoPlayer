@@ -211,6 +211,10 @@ void D3DPlayer::D3D9Render::CreateAdditionalSwapChain()
 
 void D3DPlayer::D3D9Render::UpdateDestRectByRatio()
 {
+	if (!m_KeepAspectRatio) {
+		return;
+	}
+
 	RECT rect;
 	if (!ScaleByRatio(&rect)) {
 		return;

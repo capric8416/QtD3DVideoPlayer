@@ -9,7 +9,7 @@ namespace D3DPlayer
 	class D3DPLAYER_EXPORT D3DRender
 	{
 	public:
-		D3DRender(HWND hWnd, int VideoWidth, int VideoHeight, int ViewWidth, int ViewHeight);
+		D3DRender(HWND hWnd, int VideoWidth, int VideoHeight, int ViewWidth, int ViewHeight, bool KeepAspectRatio = false);
 		virtual ~D3DRender();
 
 		virtual void Initialize() = 0;
@@ -43,6 +43,8 @@ namespace D3DPlayer
 		int m_OldViewHeight;
 
 		bool m_NeedResize;
+
+		bool m_KeepAspectRatio;
 
 		bool m_InitFailed;
 	};

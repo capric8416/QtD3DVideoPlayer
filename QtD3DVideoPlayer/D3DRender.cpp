@@ -8,7 +8,7 @@ extern "C"
 
 
 
-D3DPlayer::D3DRender::D3DRender(HWND hWnd, int VideoWidth, int VideoHeight, int ViewWidth, int ViewHeight)
+D3DPlayer::D3DRender::D3DRender(HWND hWnd, int VideoWidth, int VideoHeight, int ViewWidth, int ViewHeight, bool KeepAspectRatio)
 	: m_hWnd(hWnd)
 
 	, m_VideoWidth(VideoWidth)
@@ -18,6 +18,10 @@ D3DPlayer::D3DRender::D3DRender(HWND hWnd, int VideoWidth, int VideoHeight, int 
 	, m_ViewHeight(ViewHeight)
 	, m_OldViewWidth(0)
 	, m_OldViewHeight(0)
+
+	, m_InitFailed(false)
+
+	, m_KeepAspectRatio(KeepAspectRatio)
 
 	, m_NeedResize(false)
 {

@@ -137,7 +137,7 @@ void D3DPlayer::D3D11Render::Deinitialize()
 
 	SafeRelease(m_pSharedTexture);
 
-//#if defined(_DEBUG)
+	//#if defined(_DEBUG)
 	IDXGIDebug1 *pDxgiDebug;
 	if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&pDxgiDebug))))
 	{
@@ -145,7 +145,7 @@ void D3DPlayer::D3D11Render::Deinitialize()
 		pDxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_FLAGS(DXGI_DEBUG_RLO_SUMMARY | DXGI_DEBUG_RLO_IGNORE_INTERNAL));
 		SafeRelease(&pDxgiDebug);
 	}
-//#endif // _DEBUG
+	//#endif // _DEBUG
 
 	TRACEA(LOG_LEVEL_INFO, "</end>");
 }
@@ -263,17 +263,30 @@ void D3DPlayer::D3D11Render::ResizeSwapChain()
 
 void D3DPlayer::D3D11Render::SetViewPoint()
 {
-	RECT rect;
-	ScaleByRatio(&rect);
+	if (m_KeepAspectRatio) {
+		RECT rect;
+		ScaleByRatio(&rect);
 
-	D3D11_VIEWPORT viewPort = {};
-	viewPort.TopLeftX = rect.left;
-	viewPort.TopLeftY = rect.top;
-	viewPort.Width = (float)(rect.right - rect.left);
-	viewPort.Height = (float)(rect.bottom - rect.top);
-	viewPort.MaxDepth = 1;
-	viewPort.MinDepth = 0;
-	m_pD3DDeviceContext->RSSetViewports(1, &viewPort);
+		D3D11_VIEWPORT viewPort = {};
+		viewPort.TopLeftX = rect.left;
+		viewPort.TopLeftY = rect.top;
+		viewPort.Width = (float)(rect.right - rect.left);
+		viewPort.Height = (float)(rect.bottom - rect.top);
+		viewPort.MaxDepth = 1;
+		viewPort.MinDepth = 0;
+		m_pD3DDeviceContext->RSSetViewports(1, &viewPort);
+	}
+	else {
+
+		D3D11_VIEWPORT viewPort = {};
+		viewPort.TopLeftX = 0;
+		viewPort.TopLeftY = 0;
+		viewPort.Width = (float)m_ViewWidth;
+		viewPort.Height = (float)m_ViewHeight;
+		viewPort.MaxDepth = 1;
+		viewPort.MinDepth = 0;
+		m_pD3DDeviceContext->RSSetViewports(1, &viewPort);
+	}
 }
 
 
@@ -372,7 +385,7 @@ void D3DPlayer::D3D11Render::CreateRenderTargetView()
 	CD3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc(D3D11_RTV_DIMENSION_TEXTURE2D, DXGI_FORMAT_B8G8R8A8_UNORM);
 	BREAK_ON_FAIL(m_pD3DDevice->CreateRenderTargetView(m_pBackTexture, &renderTargetViewDesc, &m_pD3DRenderTargetView), L"CreateRenderTargetView");
 	BREAK_ON_FAIL(m_pD3DRenderTargetView == nullptr ? -1 : 0, L"CreateRenderTargetView");
-	
+
 	BREAK_ON_FAIL_LEAVE;
 	//BREAK_ON_FAIL_CLEAN;
 
