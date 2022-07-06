@@ -104,7 +104,7 @@
     <ReferencePath>$(VC_ReferencesPath_x64);</ReferencePath>
     <LibraryPath>$(SolutionDir)\..\..\..\..\00-common\lib\release\vs2015_x86;$(SolutionDir)\..\..\..\..\00-common\lib\release\vs2015_x86\ffmpeg\$(PlatformTarget)\ffmpeg;$(LibraryPath)</LibraryPath>
     <IncludePath>$(SolutionDir)..\..\..\..\00-common\include;$(SolutionDir)..\..\..\..\00-common\include\ffmpeg;$(IncludePath)</IncludePath>
-    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+    <OutDir>..\..\..\..\00-common\lib\release\vs2015_x86</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ReferencePath>$(VC_ReferencesPath_x64);</ReferencePath>
@@ -113,8 +113,13 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <PostBuildEvent>
-      <Command>
-      </Command>
+      <Command>copy /y "$(SolutionDir)..\..\..\..\00-common\lib\release\vs2015_x86\$(TargetName).dll" "$(SolutionDir)\x64\Release"
+
+copy /y "$(SolutionDir)..\..\..\..\00-common\lib\release\vs2015_x86\$(TargetName).pdb" "$(SolutionDir)\x64\Release"
+copy /y "$(ProjectDir)D3D*.h" "$(SolutionDir)..\..\..\..\00-common\include"
+del /f "$(SolutionDir)..\..\..\..\00-common\include\D3DVertexShader.h"
+del /f "$(SolutionDir)..\..\..\..\00-common\include\D3DPixelShader.h"
+</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="Configuration">

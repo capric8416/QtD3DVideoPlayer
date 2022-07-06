@@ -16,10 +16,15 @@
 
 
 #ifndef BUILD_STATIC
-#  define D3DPLAYER_EXPORT __declspec(dllexport)
+#  define D3D_PLAYER_EXPORT __declspec(dllexport)
 # else
-#  define D3DPLAYER_EXPORT __declspec(dllimport)
+#  define D3D_PLAYER_EXPORT __declspec(dllimport)
 #endif
+
+// building swtiches
+//#define D3D_PLAYER_DX_DEBUG          // debug d3d, dxgi
+//#define D3D_PLAYER_FFMPEG_LOG        // enable ffmpeg log
+//#define D3D_PLAYER_FFMPEG_D3D11VA    // use d3d11va hw accel instead of dxva2
 
 
 // d3d9 forwards
@@ -68,7 +73,7 @@ namespace D3DPlayer
 
 
 template <class T>
-inline void D3DPLAYER_EXPORT SafeDelete(T *&pT)
+inline void D3D_PLAYER_EXPORT SafeDelete(T *&pT)
 {
 	if (pT != nullptr)
 	{
@@ -79,7 +84,7 @@ inline void D3DPLAYER_EXPORT SafeDelete(T *&pT)
 
 
 template <class T>
-inline void D3DPLAYER_EXPORT SafeDeleteArray(T *&pT)
+inline void D3D_PLAYER_EXPORT SafeDeleteArray(T *&pT)
 {
 	if (pT != nullptr)
 	{
@@ -90,7 +95,7 @@ inline void D3DPLAYER_EXPORT SafeDeleteArray(T *&pT)
 
 
 template <class T>
-inline void D3DPLAYER_EXPORT SafeRelease(T *&pT)
+inline void D3D_PLAYER_EXPORT SafeRelease(T *&pT)
 {
 	if (pT != nullptr)
 	{
@@ -100,7 +105,7 @@ inline void D3DPLAYER_EXPORT SafeRelease(T *&pT)
 }
 
 template <class T>
-inline void D3DPLAYER_EXPORT SafeRelease(T **ppT)
+inline void D3D_PLAYER_EXPORT SafeRelease(T **ppT)
 {
 	if (*ppT)
 	{
@@ -111,13 +116,13 @@ inline void D3DPLAYER_EXPORT SafeRelease(T **ppT)
 
 
 // Trace like printf
-inline void D3DPLAYER_EXPORT TraceA(const char *format, ...);
-inline void D3DPLAYER_EXPORT TraceW(const wchar_t *format, ...);
+inline void D3D_PLAYER_EXPORT TraceA(const char *format, ...);
+inline void D3D_PLAYER_EXPORT TraceW(const wchar_t *format, ...);
 
 
 // ∆§√Î < ƒ…√Î < Œ¢√Î < ∫¡√Î < √Î
 // 100ƒ…√Î–›√ﬂ
-int D3DPLAYER_EXPORT SleepNanoseconds(LONGLONG hundreds);
+int D3D_PLAYER_EXPORT SleepNanoseconds(LONGLONG hundreds);
 // Œ¢√Î–›√ﬂ
 #define SleepMicrosecond(microseconds)  SleepNanoseconds(10 * microseconds)
 // ∫¡√Î–›√ﬂ

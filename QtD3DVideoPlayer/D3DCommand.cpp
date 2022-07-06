@@ -23,8 +23,10 @@ D3DPlayer::D3DPlayerCommand::D3DPlayerCommand(bool UseD3D9)
 		TRACEA(LOG_LEVEL_ERROR, "CoInitializeEx failed with 0x%x", hr);
 	}
 
-	//av_log_set_level(AV_LOG_TRACE);
-	//av_log_set_callback(FFmpegLogger);
+#if defined(D3D_PLAYER_FFMPEG_LOG)
+	av_log_set_level(AV_LOG_TRACE);
+	av_log_set_callback(FFmpegLogger);
+#endif // D3D_PLAYER_FFMPEG_LOG
 }
 
 
@@ -73,9 +75,9 @@ void D3DPlayer::D3DPlayerCommand::FFmpegLogger(void *avcl, int level, const char
 	sprintf_s(pstrLog, size, "* %s * [ffmpeg] ", pstrLevel);
 
 	_vsnprintf_s(pstrLog + offset, size, size, fmt, args);
-	
+
 	OutputDebugStringA(pstrLog);
-	
+
 	delete[] pstrLog;
 }
 
@@ -86,11 +88,13 @@ D3DPlayer::D3DPlayerCommand & D3DPlayer::D3DPlayerCommand::GetInstance()
 	// Effective C++ -- Meyers' Singleton
 	// C++0x之后该实现是线程安全的, C++0x之前仍需加锁
 
-	static D3DPlayer::D3DPlayerCommand instance(true);
-
+#if defined(D3D_PLAYER_FFMPEG_D3D11VA)
 	// D3D11CreateDevice crash at ffmpeg/libavutil/hwcontext_d3d11va.c#576
-	//static D3DPlayer::D3DPlayerCommand instance(IsWindows7OrGreater() && !IsWindows8OrGreater());
-	
+	static D3DPlayer::D3DPlayerCommand instance(IsWindows7OrGreater() && !IsWindows8OrGreater());
+#else
+	static D3DPlayer::D3DPlayerCommand instance(true);
+#endif // D3D_PLAYER_FFMPEG_D3D11VA
+
 	return instance;
 }
 

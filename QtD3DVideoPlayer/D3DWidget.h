@@ -8,7 +8,7 @@
 
 namespace D3DPlayer
 {
-	class D3DPLAYER_EXPORT D3DWidget : public QWidget
+	class D3D_PLAYER_EXPORT D3DWidget : public QWidget
 	{
 	public:
 		explicit D3DWidget(QWidget *parent = nullptr);

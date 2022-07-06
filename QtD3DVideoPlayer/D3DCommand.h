@@ -10,7 +10,7 @@
 
 namespace D3DPlayer
 {
-	class D3DPLAYER_EXPORT D3DPlayerResource {
+	class D3D_PLAYER_EXPORT D3DPlayerResource {
 	public:
 		D3DPlayerResource(
 			UINT64 no,
@@ -35,7 +35,7 @@ namespace D3DPlayer
 	typedef std::function<void(D3DPlayerCommand *pPlayerCmd, D3DPlayerResource *pRes)> WalkProc;
 
 
-	class D3DPLAYER_EXPORT D3DPlayerCommand
+	class D3D_PLAYER_EXPORT D3DPlayerCommand
 	{
 	private:
 		// µ¥Àý

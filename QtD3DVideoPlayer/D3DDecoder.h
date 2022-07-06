@@ -8,7 +8,7 @@
 
 namespace D3DPlayer
 {
-	class D3DPLAYER_EXPORT D3DDecoder
+	class D3D_PLAYER_EXPORT D3DDecoder
 	{
 	public:
 		D3DDecoder(bool UseD3D9);

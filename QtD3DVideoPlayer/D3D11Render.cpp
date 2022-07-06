@@ -8,11 +8,11 @@ extern "C"
 
 #include <vector>
 
-//#if defined(_DEBUG)
+#if defined(D3D_PLAYER_DX_DEBUG)
 #define D3D_DEBUG_INFO
 #include <dxgidebug.h>
 #include <dxgi1_3.h>
-//#endif // _DEBUG
+#endif // D3D_PLAYER_DX_DEBUG
 #include <d3d11.h>
 #include <dxgi1_2.h>
 
@@ -22,10 +22,10 @@ extern "C"
 
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "dxgi.lib")
-//#if defined(_DEBUG)
+#if defined(D3D_PLAYER_DX_DEBUG)
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "dxgi.lib")
-//#endif // _DEBUG
+#endif // D3D_PLAYER_DX_DEBUG
 
 
 
@@ -137,7 +137,7 @@ void D3DPlayer::D3D11Render::Deinitialize()
 
 	SafeRelease(m_pSharedTexture);
 
-	//#if defined(_DEBUG)
+#if defined(D3D_PLAYER_DX_DEBUG)
 	IDXGIDebug1 *pDxgiDebug;
 	if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&pDxgiDebug))))
 	{
@@ -145,7 +145,7 @@ void D3DPlayer::D3D11Render::Deinitialize()
 		pDxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_FLAGS(DXGI_DEBUG_RLO_SUMMARY | DXGI_DEBUG_RLO_IGNORE_INTERNAL));
 		SafeRelease(&pDxgiDebug);
 	}
-	//#endif // _DEBUG
+#endif // D3D_PLAYER_DX_DEBUG
 
 	TRACEA(LOG_LEVEL_INFO, "</end>");
 }

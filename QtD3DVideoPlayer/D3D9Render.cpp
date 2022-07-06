@@ -6,9 +6,9 @@ extern "C"
 #include <libavcodec/avcodec.h>
 }
 
-#if defined(_DEBUG)
+#if defined(D3D_PLAYER_DX_DEBUG)
 #define D3D_DEBUG_INFO
-#endif // _DEBUG
+#endif // D3D_PLAYER_DX_DEBUG
 #include <d3d9.h>
 
 
