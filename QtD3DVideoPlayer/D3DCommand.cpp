@@ -225,12 +225,12 @@ void D3DPlayer::D3DPlayerCommand::RenderFrame(D3DPlayerResource * pRes, AVFrame 
 
 	if (m_UseD3D9) {
 		D3D9Render *pRender = (D3D9Render *)pRes->Render;
-		pRender->Draw(pFrame);
+		pRender->Draw(pFrame, GetCodecID(pRes));
 		pRender->Present();
 	}
 	else {
 		D3D11Render *pRender = (D3D11Render *)pRes->Render;
-		pRender->Draw(pFrame);
+		pRender->Draw(pFrame, GetCodecID(pRes));
 		pRender->Present();
 	}
 }

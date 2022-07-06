@@ -35,6 +35,8 @@ namespace D3DPlayer
 	private:
 		static enum AVPixelFormat GetHwSurfaceFormat(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts);
 
+		inline int GetPacketPayloadSize();
+
 
 		AVCodec *m_pDecoder;
 		AVCodecContext *m_pDecoderContext;

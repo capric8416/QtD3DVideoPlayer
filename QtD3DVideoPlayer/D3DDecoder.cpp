@@ -136,7 +136,7 @@ void D3DPlayer::D3DDecoder::Deinitialize()
 int D3DPlayer::D3DDecoder::SendPacket(uint8_t *pBuffer, int size, int64_t dts, int64_t pts)
 {
 	AVPacket packet;
-	if (av_new_packet(&packet, 2560 * 1440) != 0) {
+	if (av_new_packet(&packet, GetPacketPayloadSize()) != 0) {
 		return -1;
 	}
 
@@ -253,4 +253,15 @@ enum AVPixelFormat D3DPlayer::D3DDecoder::GetHwSurfaceFormat(AVCodecContext *ctx
 	pThis->InitFailed = true;
 
 	return AV_PIX_FMT_NONE;
+}
+
+
+int D3DPlayer::D3DDecoder::GetPacketPayloadSize()
+{
+	int size = m_VideoWidth * m_VideoHeight;
+	if (size == 0) {
+		size = 7680 * 4320;
+	}
+
+	return size;
 }

@@ -16,8 +16,8 @@ extern "C"
 
 
 
-D3DPlayer::D3D9Render::D3D9Render(HWND hWnd, int VideoWidth, int VideoHeight, int ViewWidth, int ViewHeight)
-	: D3DRender(hWnd, VideoWidth, VideoHeight, ViewWidth, ViewHeight)
+D3DPlayer::D3D9Render::D3D9Render(HWND hWnd, int VideoWidth, int VideoHeight, int ViewWidth, int ViewHeight, bool KeepAspectRatio)
+	: D3DRender(hWnd, VideoWidth, VideoHeight, ViewWidth, ViewHeight, KeepAspectRatio)
 
 	, m_pD3D(nullptr)
 	, m_pD3DSwapChain(nullptr)
@@ -79,7 +79,7 @@ void D3DPlayer::D3D9Render::Deinitialize()
 }
 
 
-void D3DPlayer::D3D9Render::Draw(AVFrame * pFrame)
+void D3DPlayer::D3D9Render::Draw(AVFrame * pFrame, AVCodecID CodecID)
 {
 	if (m_VideoWidth == 0 && m_VideoHeight == 0) {
 		m_VideoWidth = pFrame->width;
@@ -136,7 +136,25 @@ void D3DPlayer::D3D9Render::Draw(AVFrame * pFrame)
 		TRACEA(LOG_LEVEL_WARNING, "IDirect3DDevice9_SetSamplerState D3DSAMP_MIPFILTER D3DTEXF_GAUSSIANQUAD error with code: 0x%0x", result);
 	}
 
-	BREAK_ON_FAIL(m_pD3DDevice->StretchRect(pSurface, NULL, m_pD3DBackSurface, m_pDestRect, D3DTEXF_NONE), L"StretchRect");
+	// ffmpeg/libavcodecdxva2.c#613
+	int surfaceAlignment;
+	if (CodecID == AV_CODEC_ID_HEVC || CodecID == AV_CODEC_ID_AV1) {
+		surfaceAlignment = 128;
+	}
+	else {
+		surfaceAlignment = 16;
+	}
+	int widthAligned = FFALIGN(m_VideoWidth, surfaceAlignment);
+	int heightAligned = FFALIGN(m_VideoHeight, surfaceAlignment);
+	if (widthAligned == m_VideoWidth && heightAligned == m_VideoHeight) {
+		BREAK_ON_FAIL(m_pD3DDevice->StretchRect(pSurface, NULL, m_pD3DBackSurface, m_pDestRect, D3DTEXF_NONE), L"StretchRect");
+	}
+	else {
+		RECT src;
+		src.left = 0, src.top = 0, src.right = m_VideoWidth, src.bottom = m_VideoHeight;
+		BREAK_ON_FAIL(m_pD3DDevice->StretchRect(pSurface, &src, m_pD3DBackSurface, m_pDestRect, D3DTEXF_NONE), L"StretchRect");
+	}
+
 	BREAK_ON_FAIL_LEAVE;
 	//BREAK_ON_FAIL_CLEAN;
 

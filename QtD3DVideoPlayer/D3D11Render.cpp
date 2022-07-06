@@ -39,8 +39,8 @@ struct Vertex {
 
 
 
-D3DPlayer::D3D11Render::D3D11Render(HWND hWnd, int VideoWidth, int VideoHeight, int ViewWidth, int ViewHeight)
-	: D3DRender(hWnd, VideoWidth, VideoHeight, ViewWidth, ViewHeight)
+D3DPlayer::D3D11Render::D3D11Render(HWND hWnd, int VideoWidth, int VideoHeight, int ViewWidth, int ViewHeight, bool KeepAspectRatio)
+	: D3DRender(hWnd, VideoWidth, VideoHeight, ViewWidth, ViewHeight, KeepAspectRatio)
 
 	, m_pDXGISwapChain(nullptr)
 	, m_pD3DDevice(nullptr)
@@ -151,7 +151,7 @@ void D3DPlayer::D3D11Render::Deinitialize()
 }
 
 
-void D3DPlayer::D3D11Render::Draw(AVFrame *pFrame)
+void D3DPlayer::D3D11Render::Draw(AVFrame *pFrame, AVCodecID CodecID)
 {
 	if (m_VideoWidth == 0 && m_VideoHeight == 0) {
 		m_VideoWidth = pFrame->width;

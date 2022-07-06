@@ -12,13 +12,13 @@ namespace D3DPlayer
 	class D3DPLAYER_EXPORT D3D11Render : public D3DRender
 	{
 	public:
-		D3D11Render(HWND hWnd, int VideoWidth, int VideoHeight, int ViewWidth, int ViewHeight);
+		D3D11Render(HWND hWnd, int VideoWidth, int VideoHeight, int ViewWidth, int ViewHeight, bool KeepAspectRatio = false);
 		~D3D11Render();
 
 		void Initialize();
 		void Deinitialize();
 
-		virtual void Draw(AVFrame *pFrame);
+		virtual void Draw(AVFrame *pFrame, enum AVCodecID CodecID);
 		virtual void Present();
 
 		virtual void ResizeSwapChain();
