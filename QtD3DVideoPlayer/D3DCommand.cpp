@@ -9,19 +9,26 @@ extern "C"
 #include <libavcodec/avcodec.h>
 }
 
+#include <gdiplus.h>
 #include <VersionHelpers.h>
 
 
 
-
+vprintf
 D3DPlayer::D3DPlayerCommand::D3DPlayerCommand(bool UseD3D9)
 	: m_No(0)
 	, m_UseD3D9(UseD3D9)
+	, m_pGdiplusToken(NULL)
 {
+	// Initialize COM
 	HRESULT hr = CoInitializeEx(NULL, COINIT::COINIT_APARTMENTTHREADED);
 	if (FAILED(hr)) {
 		TRACEA(LOG_LEVEL_ERROR, "CoInitializeEx failed with 0x%x", hr);
 	}
+
+	// Initialize GDI+.
+	Gdiplus::GdiplusStartupInput GdiplusStartupInput;
+	GdiplusStartup(&m_pGdiplusToken, &GdiplusStartupInput, NULL);
 
 #if defined(D3D_PLAYER_FFMPEG_LOG)
 	av_log_set_level(AV_LOG_TRACE);
@@ -46,6 +53,11 @@ D3DPlayer::D3DPlayerCommand::~D3DPlayerCommand()
 
 	m_mapResources.clear();
 
+	// Uninitialize GDI+
+	Gdiplus::GdiplusShutdown(m_pGdiplusToken);
+	m_pGdiplusToken = NULL;
+
+	// Uninitialize COM
 	CoUninitialize();
 }
 
@@ -58,7 +70,7 @@ D3DPlayer::D3DPlayerCommand::D3DPlayerCommand(const D3DPlayerCommand &)
 
 D3DPlayer::D3DPlayerCommand & D3DPlayer::D3DPlayerCommand::operator=(const D3DPlayerCommand &)
 {
-	// TODO: 在此处插入 return 语句
+	// TODO: 在此处插入
 	return *this;
 }
 
@@ -114,10 +126,10 @@ D3DPlayer::D3DPlayerResource * D3DPlayer::D3DPlayerCommand::Create(HWND hWnd, in
 
 	D3DRender *pRender = nullptr;
 	if (m_UseD3D9) {
-		pRender = new D3D9Render(hWnd, pDecoder->GetWidth(), pDecoder->GetHeight(), width, height);
+		pRender = new D3D9Render(hWnd, pDecoder->GetVideoWidth(), pDecoder->GetVideoHeight(), width, height);
 	}
 	else {
-		pRender = new D3D11Render(hWnd, pDecoder->GetWidth(), pDecoder->GetHeight(), width, height);
+		pRender = new D3D11Render(hWnd, pDecoder->GetVideoWidth(), pDecoder->GetVideoHeight(), width, height);
 	}
 
 	D3DPlayerResource *pRes = new D3DPlayerResource(m_No, hWnd, pDecoder, pRender);
@@ -138,6 +150,8 @@ void D3DPlayer::D3DPlayerCommand::Destroy(D3DPlayerResource * pRes)
 	if (iter == m_mapResources.end()) {
 		return;
 	}
+
+	delete iter->second;
 
 	m_mapResources.erase(iter);
 }
@@ -267,6 +281,45 @@ bool D3DPlayer::D3DPlayerCommand::RenderInitializeFailed(D3DPlayerResource * pRe
 }
 
 
+bool D3DPlayer::D3DPlayerCommand::TakeSnapshot(HWND hWnd, const wchar_t *pstrSnapshot, const wchar_t *pstrWatermark)
+{
+	auto iter = m_mapResources.find(hWnd);
+	if (iter == m_mapResources.end()) {
+		return false;
+	}
+
+	if (m_UseD3D9) {
+		D3D9Render *pRender = (D3D9Render *)iter->second->Render;
+		return pRender->TakeSnapshot(pstrSnapshot, pstrWatermark);
+	}
+	else {
+		D3D11Render *pRender = (D3D11Render *)iter->second->Render;
+		return pRender->TakeSnapshot(pstrSnapshot, pstrWatermark);
+	}
+}
+
+
+int D3DPlayer::D3DPlayerCommand::GetVideoWidth(HWND hWnd)
+{
+	auto iter = m_mapResources.find(hWnd);
+	if (iter == m_mapResources.end()) {
+		return 0;
+	}
+
+	return iter->second->Decoder->GetVideoWidth();
+}
+
+int D3DPlayer::D3DPlayerCommand::GetVideoHeight(HWND hWnd)
+{
+	auto iter = m_mapResources.find(hWnd);
+	if (iter == m_mapResources.end()) {
+		return 0;
+	}
+
+	return iter->second->Decoder->GetVideoHeight();
+}
+
+
 void D3DPlayer::D3DPlayerCommand::Resize(HWND hWnd, int width, int height)
 {
 	auto iter = m_mapResources.find(hWnd);
@@ -275,6 +328,8 @@ void D3DPlayer::D3DPlayerCommand::Resize(HWND hWnd, int width, int height)
 	}
 
 	iter->second->Render->Resize(width, height);
+
+	TakeSnapshot(hWnd, L"C:\\Users\\Administrator\\AppData\\Roaming\\test.jpg", L"");
 }
 
 

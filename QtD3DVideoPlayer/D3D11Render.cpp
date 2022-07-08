@@ -107,11 +107,25 @@ void D3DPlayer::D3D11Render::Initialize()
 }
 
 
+void D3DPlayer::D3D11Render::Initialize(void *pDevice, void *pContext)
+{
+	m_pD3DDevice = (ID3D11Device *)pDevice;
+	m_pD3DDeviceContext = (ID3D11DeviceContext *)pContext;
+
+	Initialize();
+}
+
+
 void D3DPlayer::D3D11Render::Deinitialize()
 {
 	TRACEA(LOG_LEVEL_INFO, "<begin>");
 
 	std::lock_guard<std::mutex> locker(m_mutexInitUninit);
+
+	if (m_pD3DDeviceContext != nullptr && m_pD3DRenderTargetView != nullptr) {
+		const FLOAT hex808080[] = { 0.5, 0.5, 0.5, 1 };
+		m_pD3DDeviceContext->ClearRenderTargetView(m_pD3DRenderTargetView, hex808080);
+	}
 
 	SafeRelease(m_pVertexShader);
 
@@ -137,6 +151,11 @@ void D3DPlayer::D3D11Render::Deinitialize()
 
 	SafeRelease(m_pSharedTexture);
 
+	if (m_pSharedHandle != nullptr) {
+		CloseHandle(m_pSharedHandle);
+		m_pSharedHandle = nullptr;
+	}
+
 #if defined(D3D_PLAYER_DX_DEBUG)
 	IDXGIDebug1 *pDxgiDebug;
 	if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&pDxgiDebug))))
@@ -153,11 +172,24 @@ void D3DPlayer::D3D11Render::Deinitialize()
 
 void D3DPlayer::D3D11Render::Draw(AVFrame *pFrame, AVCodecID CodecID)
 {
+	ID3D11Texture2D *pTexture = (ID3D11Texture2D*)pFrame->data[0];
+	uint8_t index = (uint8_t)pFrame->data[1];
+
+	BREAK_ON_FAIL_ENTER;
+
+	ID3D11Device *pDevice;
+	pTexture->GetDevice(&pDevice);
+	BREAK_ON_FAIL(pDevice == nullptr ? -1 : 0, L"GetDevice");
+
+	ID3D11DeviceContext *pDeviceContext;
+	pDevice->GetImmediateContext(&pDeviceContext);
+	BREAK_ON_FAIL(pDeviceContext == nullptr ? -1 : 0, L"GetImmediateContext");
+
 	if (m_VideoWidth == 0 && m_VideoHeight == 0) {
 		m_VideoWidth = pFrame->width;
 		m_VideoHeight = pFrame->height;
 
-		Initialize();
+		Initialize(pDevice, pDeviceContext);
 	}
 	else {
 		m_VideoWidth = pFrame->width;
@@ -173,17 +205,10 @@ void D3DPlayer::D3D11Render::Draw(AVFrame *pFrame, AVCodecID CodecID)
 		m_NeedResize = false;
 	}
 
-	ID3D11Texture2D *pTexture = (ID3D11Texture2D*)pFrame->data[0];
-	uint8_t index = (uint8_t)pFrame->data[1];
-
-	BREAK_ON_FAIL_ENTER;
-	ID3D11Device *pDevice;
-	pTexture->GetDevice(&pDevice);
-	BREAK_ON_FAIL(pDevice == nullptr ? -1 : 0, L"GetDevice");
-
-	ID3D11DeviceContext *pDeviceContext;
-	pDevice->GetImmediateContext(&pDeviceContext);
-	BREAK_ON_FAIL(pDeviceContext == nullptr ? -1 : 0, L"GetImmediateContext");
+	if (m_pSnapshot) {
+		m_pSnapshot->Take(m_pSharedTexture);
+		m_pSnapshot = nullptr;
+	}
 
 	BREAK_ON_FAIL(pDevice->OpenSharedResource(m_pSharedHandle, __uuidof(ID3D11Texture2D), (void**)&m_pSharedTexture), L"OpenSharedResource");
 	BREAK_ON_FAIL(m_pSharedTexture == nullptr ? -1 : 0, L"OpenSharedResource");
@@ -218,6 +243,7 @@ void D3DPlayer::D3D11Render::Draw(AVFrame *pFrame, AVCodecID CodecID)
 	m_pD3DDeviceContext->ClearRenderTargetView(m_pD3DRenderTargetView, hex808080);
 
 	m_pD3DDeviceContext->DrawIndexed((UINT)m_IndicesSize, 0, 0);
+
 	BREAK_ON_FAIL_LEAVE;
 	//BREAK_ON_FAIL_CLEAN;
 
@@ -261,6 +287,41 @@ void D3DPlayer::D3D11Render::ResizeSwapChain()
 }
 
 
+bool D3DPlayer::D3D11Render::TakeSnapshot(const wchar_t *pstrSnapshot, const wchar_t *pstrWatermark)
+{
+	if (m_VideoWidth == 0 || m_VideoHeight == 0 || m_pD3DDevice == nullptr) {
+		TRACEA(LOG_LEVEL_WARNING, "please wait render to be inited");
+		return false;
+	}
+
+	if (m_pSnapshot != nullptr) {
+		TRACEA(LOG_LEVEL_WARNING, "please wait another snapshot to be finished");
+		return false;
+	}
+
+	// D3DX11SaveTextureToFile, DirectX::SaveToWICFile 均不支持保持NV12
+	m_pSnapshot = new D3DSnapshot(pstrSnapshot, pstrWatermark, [this](void *pTexture) {
+
+
+
+
+		BREAK_ON_FAIL_ENTER;
+
+
+		BREAK_ON_FAIL_LEAVE;
+
+
+
+		// try to paint watermark if needed
+		AttachWatermark(m_pSnapshot->SnapshotPath, m_pSnapshot->WatermarkPath);
+
+		SafeDelete(m_pSnapshot);
+	});
+
+	return true;
+}
+
+
 void D3DPlayer::D3D11Render::SetViewPoint()
 {
 	if (m_KeepAspectRatio) {
@@ -292,30 +353,35 @@ void D3DPlayer::D3D11Render::SetViewPoint()
 
 void D3DPlayer::D3D11Render::CreateSwapChain()
 {
-	DXGI_SWAP_CHAIN_DESC desc = {};
-	auto& bufferDesc = desc.BufferDesc;
-	bufferDesc.Width = m_ViewWidth;
-	bufferDesc.Height = m_ViewHeight;
-	bufferDesc.Format = DXGI_FORMAT::DXGI_FORMAT_B8G8R8A8_UNORM;
-	bufferDesc.RefreshRate.Numerator = 0;
-	bufferDesc.RefreshRate.Denominator = 0;
-	bufferDesc.Scaling = DXGI_MODE_SCALING_STRETCHED;
-	bufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+	DXGI_SWAP_CHAIN_DESC1 desc;
+	RtlZeroMemory(&desc, sizeof(desc));
+	desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+	desc.BufferCount = 2;
+	desc.Width = m_ViewWidth;
+	desc.Height = m_ViewHeight;
+	desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
-	desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	desc.BufferCount = 2;
-	desc.OutputWindow = m_hWnd;
-	desc.Windowed = TRUE;
-	desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
-	desc.Flags = 0;
+
+	IDXGIDevice *pDxgiDevice = nullptr;
+	IDXGIAdapter *pDxgiAdapter = nullptr;
+	IDXGIFactory2 *pDxgiFactory = nullptr;
 
 	BREAK_ON_FAIL_ENTER;
-	D3D_FEATURE_LEVEL level;
-	BREAK_ON_FAIL(D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, D3D11_CREATE_DEVICE_DEBUG, NULL, NULL, D3D11_SDK_VERSION, &desc, &m_pDXGISwapChain, &m_pD3DDevice, &level, &m_pD3DDeviceContext), L"D3D11CreateDeviceAndSwapChain");
+
+	BREAK_ON_FAIL(m_pD3DDevice->QueryInterface(__uuidof(IDXGIDevice), (void**)&pDxgiDevice), L"QueryInterface");
+	BREAK_ON_FAIL(pDxgiDevice->GetParent(__uuidof(IDXGIAdapter), (void**)&pDxgiAdapter), L"GetParent");
+	BREAK_ON_FAIL(pDxgiAdapter->GetParent(__uuidof(IDXGIFactory2), (void**)&pDxgiFactory), L"GetParent");
+	
+	BREAK_ON_FAIL(pDxgiFactory->CreateSwapChainForHwnd(m_pD3DDevice, m_hWnd, &desc, nullptr, nullptr, &m_pDXGISwapChain), L"CreateSwapChainForHwnd");
 	BREAK_ON_FAIL(m_pDXGISwapChain == nullptr ? -1 : 0, L"D3D11CreateDeviceAndSwapChain");
 	BREAK_ON_FAIL_LEAVE;
 	//BREAK_ON_FAIL_CLEAN;
+
+	SafeRelease(pDxgiDevice);
+	SafeRelease(pDxgiAdapter);
+	SafeRelease(pDxgiFactory);
 
 	m_InitFailed = FAILED(result);
 }
@@ -448,8 +514,8 @@ void D3DPlayer::D3D11Render::CreateIndexBuffer()
 void D3DPlayer::D3D11Render::CreateShaders()
 {
 	D3D11_INPUT_ELEMENT_DESC desc[] = {
-		{"POSITION", 0, DXGI_FORMAT::DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{"TexCoord", 0, DXGI_FORMAT::DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"TexCoord", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
 	};
 	BREAK_ON_FAIL_ENTER;
 	BREAK_ON_FAIL(m_pD3DDevice->CreateInputLayout(desc, (UINT)std::size(desc), g_main_VS, sizeof(g_main_VS), &m_pInputLayout), L"CreateInputLayout");

@@ -79,6 +79,13 @@ namespace D3DPlayer
 		void ReleaseFrame(D3DPlayerResource *pRes);
 		// proxy: detect render error
 		bool RenderInitializeFailed(D3DPlayerResource *pRes);
+		// proxy: task snapshot of render
+		bool TakeSnapshot(HWND hWnd, const wchar_t *pstrSnapshot, const wchar_t *pstrWatermark);
+
+		// proxy: get video with
+		int GetVideoWidth(HWND hWnd);
+		// proxy: get video height
+		int GetVideoHeight(HWND hWnd);
 
 		// proxy: resize window
 		void Resize(HWND hWnd, int width, int height);
@@ -89,6 +96,8 @@ namespace D3DPlayer
 
 	private:
 		std::map<HWND, D3DPlayerResource*> m_mapResources;
+
+		ULONG_PTR m_pGdiplusToken;
 
 		std::mutex m_mutexOperation;
 

@@ -14,17 +14,19 @@ namespace D3DPlayer
 		D3D9Render(HWND hWnd, int VideoWidth, int VideoHeight, int ViewWidth, int ViewHeight, bool KeepAspectRatio = false);
 		~D3D9Render();
 
-		void Initialize();
-		void Deinitialize();
+		virtual void Initialize();
+		virtual void Deinitialize();
 
 		virtual void Draw(AVFrame *pFrame, enum AVCodecID CodecID);
 		virtual void Present();
 
 		virtual void ResizeSwapChain();
 
+		virtual bool TakeSnapshot(const wchar_t *pstrSnapshot, const wchar_t *pstrWatermark);
+
 	private:
 		bool GetDevice(IDirect3DSurface9 *pSurface);
-		void CreateAdditionalSwapChain();
+		void CreateAdditionalSwapChain(IDirect3DSwapChain9 **ppD3DSwapChain, int width, int height);
 
 		void UpdateDestRectByRatio();
 

@@ -197,13 +197,13 @@ bool D3DPlayer::D3DDecoder::IsInitFailed()
 }
 
 
-int D3DPlayer::D3DDecoder::GetWidth()
+int D3DPlayer::D3DDecoder::GetVideoWidth()
 {
 	return m_VideoWidth;
 }
 
 
-int D3DPlayer::D3DDecoder::GetHeight()
+int D3DPlayer::D3DDecoder::GetVideoHeight()
 {
 	return m_VideoHeight;
 }

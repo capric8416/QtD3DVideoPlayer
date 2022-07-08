@@ -10,9 +10,11 @@ extern "C"
 #define D3D_DEBUG_INFO
 #endif // D3D_PLAYER_DX_DEBUG
 #include <d3d9.h>
+#include <d3dx9tex.h>
 
 
 #pragma comment(lib, "d3d9.lib")
+#pragma comment(lib, "d3dx9.lib")
 
 
 
@@ -65,6 +67,10 @@ void D3DPlayer::D3D9Render::Deinitialize()
 
 	std::lock_guard<std::mutex> locker(m_mutexInitUninit);
 
+	if (m_pD3DDevice != nullptr && m_pD3DBackSurface != nullptr) {
+		m_pD3DDevice->ColorFill((IDirect3DSurface9 *)m_pD3DBackSurface, NULL, D3DCOLOR_RGBA(128, 128, 128, 1));
+	}
+
 	SafeRelease(m_pD3DBackSurface);
 
 	SafeRelease(m_pD3DDevice);
@@ -107,7 +113,12 @@ void D3DPlayer::D3D9Render::Draw(AVFrame * pFrame, AVCodecID CodecID)
 
 	bool setted = GetDevice(pSurface);
 
-	CreateAdditionalSwapChain();
+	if (m_pSnapshot) {
+		m_pSnapshot->Take(pSurface);
+		m_pSnapshot = nullptr;
+	}
+
+	CreateAdditionalSwapChain(&m_pD3DSwapChain, m_VideoWidth, m_VideoHeight);
 
 	BREAK_ON_FAIL_ENTER;
 	BREAK_ON_FAIL(m_pD3DSwapChain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &m_pD3DBackSurface), L"GetBackBuffer");
@@ -182,7 +193,55 @@ void D3DPlayer::D3D9Render::ResizeSwapChain()
 
 	SafeRelease(m_pD3DSwapChain);
 
-	CreateAdditionalSwapChain();
+	CreateAdditionalSwapChain(&m_pD3DSwapChain, m_VideoWidth, m_VideoHeight);
+}
+
+
+bool D3DPlayer::D3D9Render::TakeSnapshot(const wchar_t *pstrSnapshot, const wchar_t *pstrWatermark)
+{
+	if (m_VideoWidth == 0 || m_VideoHeight == 0 || m_pD3DDevice == nullptr) {
+		TRACEA(LOG_LEVEL_WARNING, "please wait render to be inited");
+		return false;
+	}
+
+	if (m_pSnapshot != nullptr) {
+		TRACEA(LOG_LEVEL_WARNING, "please wait another snapshot to be finished");
+		return false;
+	}
+
+	m_pSnapshot = new D3DSnapshot(pstrSnapshot, pstrWatermark, [this](void *pTexture) {
+		IDirect3DSwapChain9 *pD3DSwapChain = nullptr;
+		IDirect3DSurface9 *pD3DBackSurface = nullptr;
+
+		IDirect3DSurface9 *pSurface = (IDirect3DSurface9 *)pTexture;
+
+		BREAK_ON_FAIL_ENTER;
+
+		CreateAdditionalSwapChain(&pD3DSwapChain, m_VideoWidth, m_VideoHeight);
+		BREAK_ON_FAIL(pD3DSwapChain != nullptr ? S_OK : -1, L"CreateAdditionalSwapChain");
+
+		BREAK_ON_FAIL(pD3DSwapChain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &pD3DBackSurface), L"GetBackBuffer");
+
+		RECT rect;
+		rect.left = 0, rect.top = 0, rect.right = m_VideoWidth, rect.bottom = m_VideoHeight;
+		BREAK_ON_FAIL(m_pD3DDevice->StretchRect(pSurface, &rect, pD3DBackSurface, &rect, D3DTEXF_NONE), L"StretchRect");
+
+		BREAK_ON_FAIL(D3DXSaveSurfaceToFile(m_pSnapshot->SnapshotPath, D3DXIFF_JPG, pD3DBackSurface, NULL, NULL), L"D3DXSaveSurfaceToFile");
+		TRACEW(LOG_LEVEL_INFO, "take rendering snapshot to file %s", m_pSnapshot->SnapshotPath);
+
+		BREAK_ON_FAIL_LEAVE;
+
+		SafeRelease(pD3DBackSurface);
+
+		SafeRelease(pD3DSwapChain);
+
+		// try to paint watermark if needed
+		AttachWatermark(m_pSnapshot->SnapshotPath, m_pSnapshot->WatermarkPath);
+
+		SafeDelete(m_pSnapshot);
+	});
+
+	return true;
 }
 
 
@@ -204,21 +263,23 @@ bool D3DPlayer::D3D9Render::GetDevice(IDirect3DSurface9 *pSurface)
 }
 
 
-void D3DPlayer::D3D9Render::CreateAdditionalSwapChain()
+void D3DPlayer::D3D9Render::CreateAdditionalSwapChain(IDirect3DSwapChain9 **ppD3DSwapChain, int width, int height)
 {
-	if (m_pD3DSwapChain == nullptr) {
+	if (*ppD3DSwapChain == nullptr) {
 		D3DPRESENT_PARAMETERS params = {};
-		params.Windowed = TRUE;
-		params.hDeviceWindow = m_hWnd;
+
 		params.BackBufferFormat = D3DFORMAT::D3DFMT_X8R8G8B8;
-		params.BackBufferWidth = m_ViewWidth;
-		params.BackBufferHeight = m_ViewHeight;
-		params.SwapEffect = D3DSWAPEFFECT_DISCARD;
-		params.BackBufferCount = 1;
+		params.BackBufferWidth = width;
+		params.BackBufferHeight = height;
+		params.BackBufferCount = 2;
 		params.Flags = 0;
+		params.hDeviceWindow = m_hWnd;
+		params.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+		params.SwapEffect = D3DSWAPEFFECT_DISCARD;
+		params.Windowed = TRUE;
 		BREAK_ON_FAIL_ENTER;
-		BREAK_ON_FAIL(m_pD3DDevice->CreateAdditionalSwapChain(&params, &m_pD3DSwapChain), L"CreateAdditionalSwapChain");
-		BREAK_ON_FAIL(m_pD3DSwapChain == nullptr ? -1 : 0, L"CreateAdditionalSwapChain");
+		BREAK_ON_FAIL(m_pD3DDevice->CreateAdditionalSwapChain(&params, ppD3DSwapChain), L"CreateAdditionalSwapChain");
+		BREAK_ON_FAIL(*ppD3DSwapChain == nullptr ? -1 : 0, L"CreateAdditionalSwapChain");
 		BREAK_ON_FAIL_LEAVE;
 		//BREAK_ON_FAIL_CLEAN;
 

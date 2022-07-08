@@ -23,8 +23,8 @@ namespace D3DPlayer
 
 		bool IsInitFailed();
 
-		int GetWidth();
-		int GetHeight();
+		int GetVideoWidth();
+		int GetVideoHeight();
 
 		double GetFramerate();
 

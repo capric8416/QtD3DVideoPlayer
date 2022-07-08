@@ -1,6 +1,7 @@
 #include "D3DWidget.h"
 #include "D3DCommand.h"
 
+#include <QDir>
 #include <QResizeEvent>
 
 
@@ -12,13 +13,16 @@ D3DPlayer::D3DWidget::D3DWidget(
 	, m_pPlayerCmd(&D3DPlayer::D3DPlayerCommand::GetInstance())
 {
 	// 允许DirectX渲染
-	QWidget::setAttribute(Qt::WA_PaintOnScreen);
+	setAutoFillBackground(false);
+	setAttribute(Qt::WA_PaintOnScreen, true);
+	setAttribute(Qt::WA_MSWindowsUseDirect3D, true);
+	setAttribute(Qt::WA_NoSystemBackground, true);
 
-	// 允许按键事件
-	setFocusPolicy(Qt::WheelFocus);
+	//// 允许按键事件
+	//setFocusPolicy(Qt::WheelFocus);
 
-	// 允许鼠标移动
-	setMouseTracking(true);
+	//// 允许鼠标移动
+	//setMouseTracking(true);
 }
 
 
@@ -106,6 +110,15 @@ void D3DPlayer::D3DWidget::SetPainterState(int type, bool flag)
 }
 
 
-void D3DPlayer::D3DWidget::SaveImg(QString path, QString fileName, QString watermarkPath)
+void D3DPlayer::D3DWidget::SaveImg(HWND hWnd, QString path, QString fileName, QString watermarkPath)
 {
+	path.append("/");
+	path.append(fileName);
+	path.replace(QString("/"), QString("\\"));
+
+	watermarkPath.replace(QString("/"), QString("\\"));
+
+	m_pPlayerCmd->TakeSnapshot(hWnd, path.toStdWString().c_str(), watermarkPath.toStdWString().c_str());
 }
+
+

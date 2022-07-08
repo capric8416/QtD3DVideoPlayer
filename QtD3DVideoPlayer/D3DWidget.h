@@ -35,10 +35,11 @@ namespace D3DPlayer
 		void SendFrame(uint8_t *pic, uint32_t width, uint32_t height);
 		void CreateYUVData(uint8_t *pic, uint32_t width, uint32_t height);
 		void SetPainterState(int type, bool flag);
-		void SaveImg(QString path, QString fileName, QString watermarkPath);
+		void SaveImg(HWND hWnd, QString path, QString fileName, QString watermarkPath);
 
 
 	private:
 		D3DPlayer::D3DPlayerCommand *m_pPlayerCmd;
 	};
 }
+

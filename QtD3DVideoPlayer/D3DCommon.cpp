@@ -5,6 +5,35 @@
 
 
 
+const char * ConvertToChars(const wchar_t *src, UINT CodePage)
+{
+	int size = (int)wcslen(src);
+
+	char *dst;
+	int length = WideCharToMultiByte(CodePage, 0, src, size, NULL, 0, NULL, NULL);
+	dst = new char[length + 1];
+	WideCharToMultiByte(CodePage, 0, src, size, dst, length, NULL, NULL);
+	dst[length] = '\0';
+	
+	return dst;
+}
+
+
+const wchar_t * ConvertToWideChars(const char *src, UINT CodePage)
+{
+	int size = (int)strlen(src);
+
+	wchar_t *dst;
+	int length = MultiByteToWideChar(CodePage, 0, src, size, NULL, 0);
+	dst = new wchar_t[length + 1];
+	MultiByteToWideChar(CodePage, 0, src, size, dst, length);
+	dst[length] = '\0';
+	
+	return dst;
+}
+
+
+
 // Trace like printf
 inline void TraceA(const char *format, ...)
 {

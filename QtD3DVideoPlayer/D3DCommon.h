@@ -24,7 +24,7 @@
 // building swtiches
 //#define D3D_PLAYER_DX_DEBUG          // debug d3d, dxgi
 //#define D3D_PLAYER_FFMPEG_LOG        // enable ffmpeg log
-//#define D3D_PLAYER_FFMPEG_D3D11VA    // use d3d11va hw accel instead of dxva2
+#define D3D_PLAYER_FFMPEG_D3D11VA    // use d3d11va hw accel instead of dxva2
 
 
 // d3d9 forwards
@@ -36,7 +36,7 @@ struct IDirect3DSurface9;
 // d3d11 forwards
 struct ID3D11Device;
 struct ID3D11DeviceContext;
-struct IDXGISwapChain;
+struct IDXGISwapChain1;
 struct ID3D11Texture2D;
 struct ID3D11ShaderResourceView;
 struct ID3D11RenderTargetView;
@@ -57,6 +57,8 @@ struct AVFormatContext;
 struct AVFrame;
 struct AVIOContext;
 struct AVPacket;
+struct AVOutputFormat;
+
 
 // project forwards
 namespace D3DPlayer
@@ -113,6 +115,10 @@ inline void D3D_PLAYER_EXPORT SafeRelease(T **ppT)
 		*ppT = nullptr;
 	}
 }
+
+
+const char * ConvertToChars(const wchar_t *src, UINT CodePage = CP_ACP);
+const wchar_t * ConvertToWideChars(const char *src, UINT CodePage = CP_ACP);
 
 
 // Trace like printf

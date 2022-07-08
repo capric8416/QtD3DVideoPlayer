@@ -102,9 +102,9 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <ReferencePath>$(VC_ReferencesPath_x64);</ReferencePath>
-    <LibraryPath>$(SolutionDir)\..\..\..\..\00-common\lib\release\vs2015_x86;$(SolutionDir)\..\..\..\..\00-common\lib\release\vs2015_x86\ffmpeg\$(PlatformTarget)\ffmpeg;$(LibraryPath)</LibraryPath>
-    <IncludePath>$(SolutionDir)..\..\..\..\00-common\include;$(SolutionDir)..\..\..\..\00-common\include\ffmpeg;$(IncludePath)</IncludePath>
-    <OutDir>..\..\..\..\00-common\lib\release\vs2015_x86</OutDir>
+    <LibraryPath>$(SolutionDir)\..\..\..\..\00-common\lib\release\vs2015_x86;$(SolutionDir)\..\..\..\..\00-common\lib\release\vs2015_x86\ffmpeg\$(PlatformTarget)\ffmpeg;$(SolutionDir)\..\..\..\..\00-common\lib\release\vs2015_x86\d3d;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)..\..\..\..\00-common\include;$(SolutionDir)..\..\..\..\00-common\include\ffmpeg;$(SolutionDir)..\..\..\..\00-common\include\d3d;$(IncludePath)</IncludePath>
+    <OutDir>..\..\..\..\00-common\lib\release\vs2015_x86\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ReferencePath>$(VC_ReferencesPath_x64);</ReferencePath>
@@ -175,6 +175,7 @@ del /f "$(SolutionDir)..\..\..\..\00-common\include\D3DPixelShader.h"
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="D3DImage.cpp" />
     <ClCompile Include="D3DWidget.cpp" />
     <ClCompile Include="D3D11Render.cpp" />
     <ClCompile Include="D3D9Render.cpp" />
@@ -189,6 +190,7 @@ del /f "$(SolutionDir)..\..\..\..\00-common\include\D3DPixelShader.h"
     <ClInclude Include="D3DCommand.h" />
     <ClInclude Include="D3DCommon.h" />
     <ClInclude Include="D3DDecoder.h" />
+    <ClInclude Include="D3DImage.h" />
     <ClInclude Include="D3DPixelShader.h" />
     <ClInclude Include="D3DRender.h" />
     <ClInclude Include="D3DVertexShader.h" />

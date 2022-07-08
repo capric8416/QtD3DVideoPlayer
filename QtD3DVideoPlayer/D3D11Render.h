@@ -15,14 +15,16 @@ namespace D3DPlayer
 		D3D11Render(HWND hWnd, int VideoWidth, int VideoHeight, int ViewWidth, int ViewHeight, bool KeepAspectRatio = false);
 		~D3D11Render();
 
-		void Initialize();
-		void Deinitialize();
+		virtual void Initialize();
+		virtual void Initialize(void *pDevice, void *pContext);
+		virtual void Deinitialize();
 
 		virtual void Draw(AVFrame *pFrame, enum AVCodecID CodecID);
 		virtual void Present();
 
 		virtual void ResizeSwapChain();
 
+		virtual bool TakeSnapshot(const wchar_t *pstrSnapshot, const wchar_t *pstrWatermark);
 
 	private:
 		void SetViewPoint();
@@ -37,7 +39,7 @@ namespace D3DPlayer
 		void UpdateVertexBufferByRatio();
 
 
-		IDXGISwapChain *m_pDXGISwapChain;
+		IDXGISwapChain1 *m_pDXGISwapChain;
 		ID3D11Device *m_pD3DDevice;
 		ID3D11DeviceContext *m_pD3DDeviceContext;
 		ID3D11Texture2D *m_pBackTexture;
