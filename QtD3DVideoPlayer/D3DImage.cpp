@@ -11,9 +11,6 @@ extern "C"
 
 D3DPlayer::D3DJpegImageFromNV12::D3DJpegImageFromNV12()
 {
-	m_pFormatContext = avformat_alloc_context();
-	m_pOutputFormat = (AVOutputFormat *)av_guess_format("mjpeg", NULL, NULL);
-	m_pFormatContext->oformat = m_pOutputFormat;
 }
 
 
@@ -24,40 +21,62 @@ D3DPlayer::D3DJpegImageFromNV12::~D3DJpegImageFromNV12()
 
 
 
-bool D3DPlayer::D3DJpegImageFromNV12::Encode(AVFrame *pVideoFrame, const wchar_t *pstrImagePath)
+bool D3DPlayer::D3DJpegImageFromNV12::Encode(AVFrame *pHwFrame, const wchar_t *pstrImagePath)
 {
 	const char *path = ConvertToChars(pstrImagePath);
 
+	uint8_t *rgb24 = nullptr;
+
 	BREAK_ENTER;
 
-	BREAK_FAIL(avio_open(&m_pFormatContext->pb, path, AVIO_FLAG_WRITE) >= 0, pstrImagePath)
+	AVFrame *pSwFrame = av_frame_alloc();
+	BREAK_FAIL(pSwFrame != NULL, L"av_frame_alloc");
 
-	AVStream *pStream = avformat_new_stream(m_pFormatContext, 0);
-	BREAK_FAIL(pStream != NULL, L"avformat_new_stream");
+	BREAK_FAIL(av_hwframe_transfer_data(pHwFrame, pSwFrame, 0) >= 0, L"av_hwframe_transfer_data");
 
-	m_pEncoder = (AVCodec *)avcodec_find_encoder(pStream->codecpar->codec_id);
-	BREAK_FAIL(m_pEncoder != NULL, L"avcodec_find_encoder");
+	int width = pHwFrame->width, height = pHwFrame->height;
+	uint8_t *rgb24 = new uint8_t[width * height * 3];
+	BREAK_FAIL(rgb24 != NULL, "new uint8_t *");
 
-	m_pEncoderContext = (AVCodecContext *)avcodec_alloc_context3(m_pEncoder);
-	BREAK_FAIL(m_pEncoderContext != NULL, L"avcodec_alloc_context3");
+	Nv12ToRgb24(pSwFrame->data[0], pSwFrame->data[1], rgb24, width, height);
 
-	BREAK_FAIL(avcodec_parameters_to_context(m_pEncoderContext, pStream->codecpar) >= 0, L"avcodec_parameters_to_context");
+	BYTE buffer[1024];
+	memset(buffer, 0, 1024);
+	LPBITMAPINFOHEADER  lpBmpInfoHead = (LPBITMAPINFOHEADER)buffer;
+	lpBmpInfoHead->biSize = sizeof(BITMAPINFOHEADER);
+	lpBmpInfoHead->biBitCount = bit_data.Stride / bit_data.Width * 8;
+	lpBmpInfoHead->biWidth = bit_data.Width;
+	lpBmpInfoHead->biHeight = bit_data.Height;
+	lpBmpInfoHead->biPlanes = 1;
+	lpBmpInfoHead->biCompression = BI_RGB;
 
-	BREAK_FAIL(avcodec_open2(m_pEncoderContext, m_pEncoder, NULL) >= 0, L"avcodec_open2");
-
-	AVFrame *m_pPictureFrame = av_frame_alloc();
-	int size = av_image_get_buffer_size(m_pEncoderContext->pix_fmt, m_pEncoderContext->width, m_pEncoderContext->height, m_pEncoderContext->block_align);
-
-	uint8_t *pPictureBuffer = (uint8_t *)av_malloc(size);
-	BREAK_FAIL(pPictureBuffer != NULL, L"av_malloc");
-
-	av_image_fill_pointers(&m_pPictureFrame, pPictureBuffer, m_pEncoderContext->pix_fmt, m_pEncoderContext->width, m_pEncoderContext->height);
+	Bitmap* bm_mem = Bitmap::FromBITMAPINFO((LPBITMAPINFO)lpBmpInfoHead, data);
 
 	BREAK_LEAVE;
 
 	delete[] path;
 
+	delete[] rgb24;
+
 	if (!succeed) {
 		return false;
+	}
+}
+
+
+void D3DPlayer::D3DJpegImageFromNV12::Nv12ToRgb24(uint8_t *nv12_y, uint8_t *nv12_uv, uint8_t *rgb24, int width, int height)
+{
+	int index = 0;
+	for (int ih = 0; ih < height; ih++) {
+		for (int iw = 0; iw < width; iw++) {
+			//YYYYYYYYUVUV
+			uint8_t Y = nv12_y[iw + ih * width];
+			uint8_t U = nv12_uv[ih / 2 * width + (iw / 2) * 2];
+			uint8_t V = nv12_uv[ih / 2 * width + (iw / 2) * 2 + 1];
+
+			rgb24[index++] = Y + 1.402 * (V - 128);  // R
+			rgb24[index++] = Y - 0.34413 * (U - 128) - 0.71414 * (V - 128);  // G
+			rgb24[index++] = Y + 1.772 * (U - 128);  // B
+		}
 	}
 }

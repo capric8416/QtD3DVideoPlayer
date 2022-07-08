@@ -22,14 +22,11 @@ namespace D3DPlayer
 		D3DJpegImageFromNV12();
 		~D3DJpegImageFromNV12();
 
-		virtual bool Encode(AVFrame *pVideoFrame, const wchar_t *pstrImagePath);
+		virtual bool Encode(AVFrame *pHwFrame, const wchar_t *pstrImagePath);
 
 
 	private:
-		AVCodec *m_pEncoder;
-		AVCodecContext *m_pEncoderContext;
-		AVOutputFormat *m_pOutputFormat;
-		AVFormatContext *m_pFormatContext;
+		void Nv12ToRgb24(uint8_t *nv12_y, uint8_t *nv12_uv, uint8_t *rgb24, int width, int height);
 	};
 }
 
